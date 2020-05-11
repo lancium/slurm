@@ -3127,6 +3127,7 @@ static void _pack_ctld_job_step_info(step_record_t *step_ptr, Buf buffer,
 		pack32(step_ptr->job_ptr->array_task_id, buffer);
 		pack32(step_ptr->job_ptr->job_id, buffer);
 		pack32(step_ptr->step_id, buffer);
+		pack32(step_ptr->step_het_comp, buffer);
 		pack32(step_ptr->job_ptr->user_id, buffer);
 		pack32(cpu_cnt, buffer);
 		pack32(step_ptr->cpu_freq_min, buffer);
@@ -3813,6 +3814,7 @@ extern int dump_job_step_state(void *x, void *arg)
 	pack16((uint16_t) STEP_FLAG, buffer);
 
 	pack32(step_ptr->step_id, buffer);
+	pack32(step_ptr->step_het_comp, buffer);
 	pack16(step_ptr->cyclic_alloc, buffer);
 	pack32(step_ptr->srun_pid, buffer);
 	pack16(step_ptr->port, buffer);
@@ -3895,6 +3897,7 @@ extern int load_step_state(job_record_t *job_ptr, Buf buffer,
 	uint16_t cpus_per_task, resv_port_cnt, state;
 	uint32_t cpu_count, exit_code, name_len, srun_pid = 0;
 	uint32_t step_id, time_limit, cpu_freq_min, cpu_freq_max, cpu_freq_gov;
+	uint32_t step_het_comp = NO_VAL;
 	uint64_t pn_min_memory;
 	time_t start_time, pre_sus_time, tot_sus_time;
 	char *host = NULL, *core_job = NULL;
@@ -3910,6 +3913,7 @@ extern int load_step_state(job_record_t *job_ptr, Buf buffer,
 
 	if (protocol_version >= SLURM_20_11_PROTOCOL_VERSION) {
 		safe_unpack32(&step_id, buffer);
+		safe_unpack32(&step_het_comp, buffer);
 		safe_unpack16(&cyclic_alloc, buffer);
 		safe_unpack32(&srun_pid, buffer);
 		safe_unpack16(&port, buffer);

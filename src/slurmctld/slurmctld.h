@@ -970,6 +970,7 @@ typedef struct {
 	dynamic_plugin_data_t *select_jobinfo;/* opaque data, BlueGene */
 	uint32_t srun_pid;		/* PID of srun (also see host/port) */
 	uint32_t state;			/* state of the step. See job_states */
+	uint32_t step_het_comp;		/* het component in normal allocation */
 	uint32_t step_id;		/* step number */
 	slurm_step_layout_t *step_layout;/* info about how tasks are laid out
 					  * in the step */

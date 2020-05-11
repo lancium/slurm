@@ -3332,6 +3332,7 @@ _unpack_job_step_info_members(job_step_info_t * step, Buf buffer,
 		safe_unpack32(&step->array_task_id, buffer);
 		safe_unpack32(&step->job_id, buffer);
 		safe_unpack32(&step->step_id, buffer);
+		safe_unpack32(&step->step_het_comp, buffer);
 		safe_unpack32(&step->user_id, buffer);
 		safe_unpack32(&step->num_cpus, buffer);
 		safe_unpack32(&step->cpu_freq_min, buffer);
