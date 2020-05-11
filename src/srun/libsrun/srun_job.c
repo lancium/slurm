@@ -1015,6 +1015,24 @@ static char *_compress_het_job_nodelist(List used_resp_list)
 	return het_job_nodelist;
 }
 
+/*
+ * Here we have a regular job allocation, but we are requesting a het step in
+ * that allocation. So here we will copy the resp_list to the number of
+ * components we care about.
+ */
+static void _copy_job_resp(List job_resp_list, int count)
+{
+	resource_allocation_response_msg_t *new, *orig;
+	xassert(job_resp_list);
+	xassert(list_count(job_resp_list) == 1);
+
+	orig = list_peek(job_resp_list);
+	for (int i = 0; i < count; i++) {
+		new = slurm_copy_resource_allocation_response_msg(orig);
+		list_append(job_resp_list, new);
+	}
+}
+
 extern void create_srun_job(void **p_job, bool *got_alloc,
 			    bool slurm_started, bool handle_signals)
 {
@@ -1077,10 +1095,23 @@ extern void create_srun_job(void **p_job, bool *got_alloc,
 			}
 			list_iterator_destroy(opt_iter);
 			if (max_list_offset > max_het_job_offset) {
-				error("Attempt to run a job step with het group value of %d, "
-				      "but the job allocation has maximum value of %d",
-				      max_list_offset, max_het_job_offset);
-				exit(1);
+				if (list_count(job_resp_list) != 1) {
+					error("Attempt to run a job step with het group value of %d, but the job allocation has maximum value of %d",
+					      max_list_offset,
+					      max_het_job_offset);
+					exit(1);
+				}
+
+				/*
+				 * Here we have a regular job allocation, but we
+				 * are requesting a het step in that
+				 * allocation. So here we will copy the
+				 * resp_list to the number of components we care
+				 * about.
+				 */
+				_copy_job_resp(job_resp_list, max_list_offset);
+				max_het_job_offset = max_list_offset;
+				local_het_step = true;
 			}
 		}
 		srun_job_list = list_create(NULL);
@@ -1104,6 +1135,11 @@ extern void create_srun_job(void **p_job, bool *got_alloc,
 			while ((opt_local = get_next_opt(het_job_offset))) {
 				srun_opt_t *srun_opt = opt_local->srun_opt;
 				xassert(srun_opt);
+
+				if (local_het_step)
+					opt_local->step_het_comp_cnt =
+						max_het_job_offset;
+
 				if (merge_nodelist) {
 					merge_nodelist = false;
 					list_append(used_resp_list, resp);
@@ -1221,7 +1257,8 @@ extern void create_srun_job(void **p_job, bool *got_alloc,
 		if (i == 1)
 			FREE_NULL_LIST(srun_job_list);	/* Just use "job" */
 		if (list_count(job_resp_list) > 1) {
-			if (my_job_id)
+			/* only set if actually a hetjob */
+			if (!local_het_step && my_job_id)
 				het_job_id = my_job_id;
 			het_job_nodelist =
 				_compress_het_job_nodelist(used_resp_list);
@@ -1281,9 +1318,13 @@ extern void create_srun_job(void **p_job, bool *got_alloc,
 			}
 			list_iterator_destroy(opt_iter);
 			list_iterator_destroy(resp_iter);
-			/* Continue support for old hetjob terminology. */
-			setenvfs("SLURM_PACK_SIZE=%d", het_job_offset + 1);
-			setenvfs("SLURM_HET_SIZE=%d", het_job_offset + 1);
+			if (!local_het_step) {
+				/* Continue support for old pack terminology. */
+				setenvfs("SLURM_PACK_SIZE=%d",
+					 het_job_offset + 1);
+				setenvfs("SLURM_HET_SIZE=%d",
+					 het_job_offset + 1);
+			}
 		} else {
 			if (!(resp = allocate_nodes(handle_signals, &opt)))
 				exit(error_exit);
@@ -1300,7 +1341,9 @@ extern void create_srun_job(void **p_job, bool *got_alloc,
 		}
 		if (srun_job_list && (list_count(srun_job_list) > 1) &&
 		    opt_list && (list_count(opt_list) > 1) && my_job_id) {
-			het_job_id = my_job_id;
+			/* only set if actually a hetjob */
+			if (!local_het_step)
+				het_job_id = my_job_id;
 			het_job_nodelist =
 				_compress_het_job_nodelist(job_resp_list);
 		}
@@ -1810,7 +1853,8 @@ static char *_build_key(char *base, int het_job_offset)
 {
 	char *key = NULL;
 
-	if (het_job_offset == -1)
+	/* If we are a local_het_step we treat it like a normal step */
+	if (local_het_step || (het_job_offset == -1))
 		key = xstrdup(base);
 	else
 		xstrfmtcat(key, "%s_PACK_GROUP_%d", base, het_job_offset);

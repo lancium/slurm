@@ -637,6 +637,15 @@ _send_exit_msg(stepd_step_rec_t *job, uint32_t *tid, int n, int status)
 		msg.return_code = status;
 	msg.job_id		= job->jobid;
 	msg.step_id		= job->stepid;
+	/*
+	 * Only set the step_het_comp if we are in a het step from a single
+	 * allocation
+	 */
+	if ((job->het_job_offset != NO_VAL) && (job->het_job_id == NO_VAL))
+		msg.step_het_comp = job->het_job_offset;
+	else
+		msg.step_het_comp = NO_VAL;
+
 	slurm_msg_t_init(&resp);
 	resp.data		= &msg;
 	resp.msg_type		= MESSAGE_TASK_EXIT;
@@ -1634,6 +1643,12 @@ _fork_all_tasks(stepd_step_rec_t *job, bool *io_initialized)
 	char *oom_value;
 	List exec_wait_list = NULL;
 	uint32_t jobid;
+	uint32_t node_offset = 0, task_offset = 0;
+
+	if (job->het_job_node_offset != NO_VAL)
+		node_offset = job->het_job_node_offset;
+	if (job->het_job_task_offset != NO_VAL)
+		task_offset = job->het_job_task_offset;
 
 	DEF_TIMERS;
 	START_TIMER;
@@ -1820,7 +1835,7 @@ _fork_all_tasks(stepd_step_rec_t *job, bool *io_initialized)
 
 		log_timestamp(time_stamp, sizeof(time_stamp));
 		verbose("task %lu (%lu) started %s",
-			(unsigned long) job->task[i]->gtid,
+			(unsigned long) job->task[i]->gtid + task_offset,
 			(unsigned long) pid, time_stamp);
 
 		job->task[i]->pid = pid;
@@ -1876,8 +1891,8 @@ _fork_all_tasks(stepd_step_rec_t *job, bool *io_initialized)
 			rc = SLURM_ERROR;
 			goto fail2;
 		}
-		jobacct_id.nodeid = job->nodeid;
-		jobacct_id.taskid = job->task[i]->gtid;
+		jobacct_id.nodeid = job->nodeid + node_offset;
+		jobacct_id.taskid = job->task[i]->gtid + task_offset;
 		jobacct_id.job    = job;
 		if (i == (job->node_tasks - 1)) {
 			/* start polling on the last task */
@@ -2091,7 +2106,7 @@ _wait_for_any_task(stepd_step_rec_t *job, bool waitflag)
 
 		if ((t = job_task_info_by_pid(job, pid))) {
 			completed++;
-			_log_task_exit(t->gtid, pid, status);
+			_log_task_exit(t->gtid + task_offset, pid, status);
 			t->exited  = true;
 			t->estatus = status;
 			job->envtp->procid = t->gtid + task_offset;
@@ -2385,6 +2400,16 @@ _send_launch_failure(launch_tasks_request_msg_t *msg, slurm_addr_t *cli, int rc,
 
 	resp.job_id        = msg->job_id;
 	resp.step_id       = msg->job_step_id;
+
+	/*
+	 * Only set the step_het_comp if we are in a het step from a single
+	 * allocation
+	 */
+	if ((msg->het_job_offset != NO_VAL) && (msg->het_job_id == NO_VAL))
+		resp.step_het_comp = msg->het_job_offset;
+	else
+		resp.step_het_comp = NO_VAL;
+
 	resp.node_name     = name;
 	resp.return_code   = rc ? rc : -1;
 	resp.count_of_pids = 0;
@@ -2416,6 +2441,16 @@ _send_launch_resp(stepd_step_rec_t *job, int rc)
 
 	resp.job_id		= job->jobid;
 	resp.step_id		= job->stepid;
+
+	/*
+	 * Only set the step_het_comp if we are in a het step from a single
+	 * allocation
+	 */
+	if ((job->het_job_offset != NO_VAL) && (job->het_job_id == NO_VAL))
+		resp.step_het_comp = job->het_job_offset;
+	else
+		resp.step_het_comp = NO_VAL;
+
 	resp.node_name		= xstrdup(job->node_name);
 	resp.return_code	= rc;
 	resp.count_of_pids	= job->node_tasks;
@@ -2424,6 +2459,10 @@ _send_launch_resp(stepd_step_rec_t *job, int rc)
 	resp.task_ids = xmalloc(job->node_tasks * sizeof(*resp.task_ids));
 	for (i = 0; i < job->node_tasks; i++) {
 		resp.local_pids[i] = job->task[i]->pid;
+		/*
+		 * Don't add offset here, this represents a bit on the other
+		 * side.
+		 */
 		resp.task_ids[i] = job->task[i]->gtid;
 	}
 

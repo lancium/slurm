@@ -215,8 +215,18 @@ static int _purge_duplicate_steps(job_record_t *job_ptr,
 			_free_step_rec(step_ptr);
 			break;
 		}
-		if ((step_specs->step_id != NO_VAL) &&
-		    (step_specs->step_id == step_ptr->step_id))
+
+		if (step_specs->step_id == NO_VAL)
+			continue;
+
+		/*
+		 * See if we have the same step id.  If we do check to see if we
+		 * have the same step_het_comp or if the step's is NO_VAL,
+		 * meaning this step is not a het step.
+		 */
+		if ((step_specs->step_id == step_ptr->step_id) &&
+		    ((step_specs->step_het_comp == step_ptr->step_het_comp) ||
+		     (step_ptr->step_het_comp == NO_VAL)))
 			rc = ESLURM_DUPLICATE_STEP_ID;
 	}
 	list_iterator_destroy(step_iterator);
@@ -2565,9 +2575,11 @@ extern int step_create(job_step_create_request_msg_t *step_specs,
 
 	if (step_specs->step_id != NO_VAL) {
 		step_ptr->step_id = step_specs->step_id;
-		job_ptr->next_step_id = MAX(job_ptr->next_step_id,
-					    step_specs->step_id);
-		job_ptr->next_step_id++;
+		if (step_specs->step_het_comp == NO_VAL) {
+			job_ptr->next_step_id = MAX(job_ptr->next_step_id,
+						    step_specs->step_id);
+			job_ptr->next_step_id++;
+		}
 	} else if (job_ptr->het_job_id &&
 		   (job_ptr->het_job_id != job_ptr->job_id)) {
 		job_record_t *het_job;
@@ -2581,6 +2593,8 @@ extern int step_create(job_step_create_request_msg_t *step_specs,
 	} else {
 		step_ptr->step_id = job_ptr->next_step_id++;
 	}
+
+	step_ptr->step_het_comp = step_specs->step_het_comp;
 
 	/* Here is where the node list is set for the step */
 	if (step_specs->node_list &&
@@ -2807,6 +2821,11 @@ extern int step_create(job_step_create_request_msg_t *step_specs,
 	jobid = job_ptr->job_id;
 #endif
 
+	/*
+	 * FIXME: we need to make sure the switch is set up correctly on a het
+	 * step
+	 */
+
 	if (step_layout) {
 		if (switch_g_alloc_jobinfo(&step_ptr->switch_job,
 					   jobid,
@@ -2837,8 +2856,8 @@ extern int step_create(job_step_create_request_msg_t *step_specs,
 
 	select_g_step_start(step_ptr);
 
-	step_set_alloc_tres(step_ptr, node_count, false, true);
 
+	step_set_alloc_tres(step_ptr, node_count, false, true);
 	jobacct_storage_g_step_start(acct_db_conn, step_ptr);
 	return SLURM_SUCCESS;
 }
@@ -4155,6 +4174,7 @@ extern int load_step_state(job_record_t *job_ptr, Buf buffer,
 
 	/* set new values */
 	step_ptr->step_id      = step_id;
+	step_ptr->step_het_comp = step_het_comp;
 	step_ptr->cpu_count    = cpu_count;
 	step_ptr->cpus_per_task= cpus_per_task;
 	step_ptr->cyclic_alloc = cyclic_alloc;

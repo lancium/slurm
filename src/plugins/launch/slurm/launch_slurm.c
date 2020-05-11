@@ -292,7 +292,8 @@ static void _task_start(launch_tasks_response_msg_t *msg)
 		       msg->node_name, slurm_strerror(msg->return_code));
 	}
 
-	task_state = task_state_find(msg->job_id, msg->step_id, NO_VAL,
+	task_state = task_state_find(msg->job_id, msg->step_id,
+				     msg->step_het_comp,
 				     task_state_list);
 	if (!task_state) {
 		error("%s: Could not locate task state for step %u.%u",
@@ -341,7 +342,9 @@ static void _task_finish(task_exit_msg_t *msg)
 	iter = list_iterator_create(local_job_list);
 	while ((my_srun_job = (srun_job_t *) list_next(iter))) {
 		if ((my_srun_job->jobid  == msg->job_id) &&
-		    (my_srun_job->stepid == msg->step_id))
+		    (my_srun_job->stepid == msg->step_id) &&
+		    ((msg->step_het_comp == NO_VAL) ||
+		     (my_srun_job->het_job_offset == msg->step_het_comp)))
 			break;
 	}
 	list_iterator_destroy(iter);
@@ -449,7 +452,8 @@ static void _task_finish(task_exit_msg_t *msg)
 	xfree(tasks);
 	xfree(hosts);
 
-	task_state = task_state_find(msg->job_id, msg->step_id, NO_VAL,
+	task_state = task_state_find(msg->job_id, msg->step_id,
+				     msg->step_het_comp,
 				     task_state_list);
 	if (task_state) {
 		_update_task_exit_state(task_state, msg->num_tasks,

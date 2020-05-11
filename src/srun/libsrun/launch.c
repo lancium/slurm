@@ -184,6 +184,9 @@ extern int launch_common_create_job_step(srun_job_t *job, bool use_all_cpus,
 	job->ctx_params.step_id = job->stepid;
 	job->ctx_params.uid = opt_local->uid;
 
+	job->ctx_params.step_het_comp = job->het_job_offset;
+	job->ctx_params.step_het_comp_cnt = opt_local->step_het_comp_cnt;
+
 	/* Validate minimum and maximum node counts */
 	if (opt_local->min_nodes && opt_local->max_nodes &&
 	    (opt_local->min_nodes > opt_local->max_nodes)) {

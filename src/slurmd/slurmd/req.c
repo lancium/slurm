@@ -1442,6 +1442,10 @@ _rpc_launch_tasks(slurm_msg_t *msg)
 		     req->het_job_id, req->het_job_offset, req->job_step_id,
 		     req->job_id, req->job_step_id, req->uid, req->gid,
 		     host, port);
+	} else if (req->het_job_offset != NO_VAL) {
+		info("launch task %u.%u+%u request from UID:%u GID:%u HOST:%s PORT:%hu",
+		     req->job_id, req->job_step_id, req->het_job_offset,
+		     req->uid, req->gid, host, port);
 	} else {
 		info("launch task %u.%u request from UID:%u GID:%u HOST:%s PORT:%hu",
 		     req->job_id, req->job_step_id, req->uid, req->gid,

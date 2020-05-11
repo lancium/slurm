@@ -2383,6 +2383,8 @@ extern void _pack_job_step_create_request_msg(
 		packstr(msg->network, buffer);
 		packstr(msg->node_list, buffer);
 		packstr(msg->features, buffer);
+		pack32(msg->step_het_comp, buffer);
+		pack32(msg->step_het_comp_cnt, buffer);
 		packstr(msg->step_het_grps, buffer);
 
 		pack8(msg->no_kill, buffer);
@@ -2488,6 +2490,8 @@ extern int _unpack_job_step_create_request_msg(
 				       buffer);
 		safe_unpackstr_xmalloc(&tmp_ptr->features, &uint32_tmp,
 				       buffer);
+		safe_unpack32(&tmp_ptr->step_het_comp, buffer);
+		safe_unpack32(&tmp_ptr->step_het_comp_cnt, buffer);
 		safe_unpackstr_xmalloc(&tmp_ptr->step_het_grps, &uint32_tmp,
 				       buffer);
 
@@ -7528,6 +7532,7 @@ _pack_task_exit_msg(task_exit_msg_t * msg, Buf buffer,
 		pack32_array(msg->task_id_list,
 			     msg->num_tasks, buffer);
 		pack32(msg->job_id, buffer);
+		pack32(msg->step_het_comp, buffer);
 		pack32(msg->step_id, buffer);
 	} else if (protocol_version >= SLURM_MIN_PROTOCOL_VERSION) {
 		pack32(msg->return_code, buffer);
@@ -7560,6 +7565,7 @@ _unpack_task_exit_msg(task_exit_msg_t ** msg_ptr, Buf buffer,
 		if (msg->num_tasks != uint32_tmp)
 			goto unpack_error;
 		safe_unpack32(&msg->job_id, buffer);
+		safe_unpack32(&msg->step_het_comp, buffer);
 		safe_unpack32(&msg->step_id, buffer);
 	} else if (protocol_version >= SLURM_MIN_PROTOCOL_VERSION) {
 		safe_unpack32(&msg->return_code, buffer);
@@ -7569,6 +7575,7 @@ _unpack_task_exit_msg(task_exit_msg_t ** msg_ptr, Buf buffer,
 			goto unpack_error;
 		safe_unpack32(&msg->job_id, buffer);
 		safe_unpack32(&msg->step_id, buffer);
+		msg->step_het_comp = NO_VAL;
 	} else {
 		error("%s: protocol_version %hu not supported",
 		      __func__, protocol_version);
@@ -7591,6 +7598,7 @@ _pack_launch_tasks_response_msg(launch_tasks_response_msg_t * msg, Buf buffer,
 	xassert(msg);
 	if (protocol_version >= SLURM_20_11_PROTOCOL_VERSION) {
 		pack32(msg->job_id, buffer);
+		pack32(msg->step_het_comp, buffer);
 		pack32(msg->step_id, buffer);
 		pack32(msg->return_code, buffer);
 		packstr(msg->node_name, buffer);
@@ -7624,6 +7632,7 @@ _unpack_launch_tasks_response_msg(launch_tasks_response_msg_t **msg_ptr,
 
 	if (protocol_version >= SLURM_20_11_PROTOCOL_VERSION) {
 		safe_unpack32(&msg->job_id, buffer);
+		safe_unpack32(&msg->step_het_comp, buffer);
 		safe_unpack32(&msg->step_id, buffer);
 		safe_unpack32(&msg->return_code, buffer);
 		safe_unpackstr_xmalloc(&msg->node_name, &uint32_tmp, buffer);
@@ -7646,6 +7655,7 @@ _unpack_launch_tasks_response_msg(launch_tasks_response_msg_t **msg_ptr,
 		safe_unpack32_array(&msg->task_ids, &uint32_tmp, buffer);
 		if (msg->count_of_pids != uint32_tmp)
 			goto unpack_error;
+		msg->step_het_comp = NO_VAL;
 	} else {
 		error("%s: protocol_version %hu not supported", __func__,
 		      protocol_version);
