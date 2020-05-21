@@ -1669,6 +1669,7 @@ static int _fail_step_tasks(slurm_step_ctx_t *ctx, char *node, int ret_code)
 	memset(&msg, 0, sizeof(msg));
 	msg.job_id = ctx->job_id;
 	msg.job_step_id = ctx->step_resp->job_step_id;
+	msg.step_het_comp = ctx->step_req->step_het_comp;
 
 	msg.range_first = msg.range_last = nodeid;
 	msg.step_rc = ret_code;

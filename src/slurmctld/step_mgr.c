@@ -3435,6 +3435,7 @@ extern int kill_step_on_node(job_record_t *job_ptr, node_record_t *node_ptr,
 		memset(&req, 0, sizeof(step_complete_msg_t));
 		req.job_id = job_ptr->job_id;
 		req.job_step_id = step_ptr->step_id;
+		req.step_het_comp = step_ptr->step_het_comp;
 		req.range_first = step_node_inx;
 		req.range_last = step_node_inx;
 		req.step_rc = 9;
@@ -3507,11 +3508,12 @@ extern int step_partial_comp(step_complete_msg_t *req, uid_t uid, bool finish,
 		return ESLURM_USER_ID_MISSING;
 	}
 
-	step_ptr = find_step_record(job_ptr, req->job_step_id, NO_VAL);
+	step_ptr = find_step_record(job_ptr, req->job_step_id,
+				    req->step_het_comp);
 
 	if (step_ptr == NULL) {
-		info("step_partial_comp: %pJ StepID=%u invalid",
-		     job_ptr, req->job_step_id);
+		info("step_partial_comp: %pJ StepID=%u+%u invalid",
+		     job_ptr, req->job_step_id, req->step_het_comp);
 		return ESLURM_INVALID_JOB_ID;
 	}
 	if (step_ptr->batch_step) {
@@ -4192,7 +4194,7 @@ extern int load_step_state(job_record_t *job_ptr, Buf buffer,
 		goto unpack_error;
 	}
 
-	step_ptr = find_step_record(job_ptr, step_id, NO_VAL);
+	step_ptr = find_step_record(job_ptr, step_id, step_het_comp);
 	if (step_ptr == NULL)
 		step_ptr = _create_step_record(job_ptr, start_protocol_ver);
 	if (step_ptr == NULL)

@@ -748,6 +748,16 @@ _one_step_complete_msg(stepd_step_rec_t *job, int first, int last)
 	memset(&msg, 0, sizeof(msg));
 	msg.job_id = job->jobid;
 	msg.job_step_id = job->stepid;
+
+	/*
+	 * Only set the step_het_comp if we are in a het step from a single
+	 * allocation
+	 */
+	if ((job->het_job_offset != NO_VAL) && (job->het_job_id == NO_VAL))
+		msg.step_het_comp = job->het_job_offset;
+	else
+		msg.step_het_comp = NO_VAL;
+
 	msg.range_first = first;
 	msg.range_last = last;
 	if (job->oom_error)

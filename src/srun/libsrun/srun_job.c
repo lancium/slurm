@@ -858,6 +858,8 @@ static void _cancel_steps(List srun_job_list)
 			continue;
 		msg.job_id	= job->jobid;
 		msg.job_step_id	= job->stepid;
+		if (local_het_step)
+			msg.step_het_comp = job->het_job_offset;
 		msg.range_first	= 0;
 		msg.range_last	= job->nhosts - 1;
 		(void) slurm_send_recv_controller_rc_msg(&req, &rc,

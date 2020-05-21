@@ -1015,9 +1015,14 @@ stepd_completion(int fd, uint16_t protocol_version, step_complete_msg_t *sent)
 
 	buffer = init_buf(0);
 
-	debug("Entering stepd_completion for %u.%u, range_first = %d, range_last = %d",
-	      sent->job_id, sent->job_step_id,
-	      sent->range_first, sent->range_last);
+	if (sent->step_het_comp == NO_VAL)
+		debug("Entering stepd_completion for %u.%u, range_first = %d, range_last = %d",
+		      sent->job_id, sent->job_step_id,
+		      sent->range_first, sent->range_last);
+	else
+		debug("Entering stepd_completion for %u.%u+%u, range_first = %d, range_last = %d",
+		      sent->job_id, sent->job_step_id, sent->step_het_comp,
+		      sent->range_first, sent->range_last);
 
 	if (protocol_version >= SLURM_MIN_PROTOCOL_VERSION) {
 		safe_write(fd, &req, sizeof(int));

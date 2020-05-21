@@ -8881,6 +8881,7 @@ _pack_step_complete_msg(step_complete_msg_t * msg, Buf buffer,
 		pack32((uint32_t)msg->job_step_id, buffer);
 		pack32((uint32_t)msg->range_first, buffer);
 		pack32((uint32_t)msg->range_last, buffer);
+		pack32(msg->step_het_comp, buffer);
 		pack32((uint32_t)msg->step_rc, buffer);
 		jobacctinfo_pack(msg->jobacct, protocol_version,
 				 PROTOCOL_TYPE_SLURM, buffer);
@@ -8911,6 +8912,7 @@ _unpack_step_complete_msg(step_complete_msg_t ** msg_ptr, Buf buffer,
 		safe_unpack32(&msg->job_step_id, buffer);
 		safe_unpack32(&msg->range_first, buffer);
 		safe_unpack32(&msg->range_last, buffer);
+		safe_unpack32(&msg->step_het_comp, buffer);
 		safe_unpack32(&msg->step_rc, buffer);
 		if (jobacctinfo_unpack(&msg->jobacct, protocol_version,
 				       PROTOCOL_TYPE_SLURM, buffer, 1)
@@ -8921,6 +8923,7 @@ _unpack_step_complete_msg(step_complete_msg_t ** msg_ptr, Buf buffer,
 		safe_unpack32(&msg->job_step_id, buffer);
 		safe_unpack32(&msg->range_first, buffer);
 		safe_unpack32(&msg->range_last, buffer);
+		msg->step_het_comp = NO_VAL;
 		safe_unpack32(&msg->step_rc, buffer);
 		if (jobacctinfo_unpack(&msg->jobacct, protocol_version,
 				       PROTOCOL_TYPE_SLURM, buffer, 1)

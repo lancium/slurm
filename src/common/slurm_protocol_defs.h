@@ -689,6 +689,7 @@ typedef struct step_complete_msg {
 	uint32_t job_step_id;
 	uint32_t range_first;	/* First node rank within job step's alloc */
 	uint32_t range_last;	/* Last node rank within job step's alloc */
+	uint32_t step_het_comp; /* het step component if normal allocation */
  	uint32_t step_rc;	/* largest task return code */
 	jobacctinfo_t *jobacct;
 } step_complete_msg_t;
