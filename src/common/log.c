@@ -749,9 +749,11 @@ static char *_stepid2fmt(step_record_t *step_ptr, char *buf, int buf_size)
 		return " StepId=Batch";
 	} else if (step_ptr->step_id == SLURM_PENDING_STEP) {
 		return " StepId=TBD";
-	} else {
+	} else if (step_ptr->step_het_comp == NO_VAL) {
 		snprintf(buf, buf_size, " StepId=%u", step_ptr->step_id);
-	}
+	} else
+		snprintf(buf, buf_size, " StepId=%u+%u", step_ptr->step_id,
+			 step_ptr->step_het_comp);
 
 	return buf;
 }
