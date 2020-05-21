@@ -2615,7 +2615,7 @@ static void _slurm_rpc_complete_batch_script(slurm_msg_t *msg,
 	    (job_ptr->job_state != JOB_PENDING)) {
 		/* This logic was taken from _slurm_rpc_step_complete() */
 		step_record_t *step_ptr =
-			find_step_record(job_ptr, SLURM_BATCH_SCRIPT);
+			find_step_record(job_ptr, SLURM_BATCH_SCRIPT, NO_VAL);
 		if (!step_ptr) {
 			error("%s: Could not find batch step for %pJ, this should never happen",
 			      __func__, job_ptr);
@@ -3479,7 +3479,8 @@ static void _slurm_rpc_job_sbcast_cred(slurm_msg_t * msg)
 
 	if ((error_code == SLURM_SUCCESS) && job_ptr
 	    && (job_info_msg->step_id != NO_VAL)) {
-		step_ptr = find_step_record(job_ptr, job_info_msg->step_id);
+		step_ptr = find_step_record(job_ptr, job_info_msg->step_id,
+					    NO_VAL);
 		if (!step_ptr) {
 			job_ptr = NULL;
 			error_code = ESLURM_INVALID_JOB_ID;
@@ -3932,7 +3933,7 @@ static void _slurm_rpc_step_layout(slurm_msg_t *msg)
 		return;
 	}
 
-	step_ptr = find_step_record(job_ptr, req->step_id);
+	step_ptr = find_step_record(job_ptr, req->step_id, NO_VAL);
 	if (!step_ptr) {
 		unlock_slurmctld(job_read_lock);
 		log_flag(STEPS, "%s: %pJ StepId=%u Not Found",

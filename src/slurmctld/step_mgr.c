@@ -76,6 +76,11 @@
 #include "src/slurmctld/slurmctld.h"
 #include "src/slurmctld/srun_comm.h"
 
+typedef struct {
+       uint32_t step_het_comp;
+       uint32_t step_id;
+} step_id_info_t;
+
 static void _build_pending_step(job_record_t *job_ptr,
 				job_step_create_request_msg_t *step_specs);
 static int  _count_cpus(job_record_t *job_ptr, bitstr_t *bitmap,
@@ -312,6 +317,30 @@ static void _internal_step_complete(job_record_t *job_ptr,
 }
 
 /*
+ * _find_step_id - Find specific step_id entry in the step list,
+ *	           see common/list.h for documentation
+ * - object - the step list from a job_record_t
+ * - key - step_id_info_t
+ */
+static int _find_step_id(void *object, void *key)
+{
+	step_record_t *step_ptr = (step_record_t *)object;
+	step_id_info_t *step_info = (step_id_info_t *)key;
+
+	/*
+	 * See if we have the same step id.  If we do check to see if we
+	 * have the same step_het_comp or if the step's is NO_VAL,
+	 * meaning this step is not a het step.
+	 */
+	if ((step_info->step_id == step_ptr->step_id) &&
+	    ((step_info->step_het_comp == step_ptr->step_het_comp) ||
+	     (step_info->step_het_comp == NO_VAL)))
+		return 1;
+	else
+		return 0;
+}
+
+/*
  * delete_step_records - Delete step record for specified job_ptr.
  * This function is called when a step fails to run to completion. For example,
  * when the job is killed due to reaching its time limit or allocated nodes
@@ -514,34 +543,22 @@ dump_step_desc(job_step_create_request_msg_t *step_spec)
 }
 
 /*
- * _find_step_id - find specific step_id entry in the step list,
- *	see common/list.h for documentation, key is step_id_ptr
- * global- job_list - the global partition list
- */
-extern int _find_step_id(void *step_entry, void *key)
-{
-	uint32_t step_id = *(uint32_t *)key;
-
-	if (((step_record_t *)step_entry)->step_id == step_id)
-		return 1;
-	else
-		return 0;
-}
-
-
-/*
  * find_step_record - return a pointer to the step record with the given
  *	job_id and step_id
  * IN job_ptr - pointer to job table entry to have step record added
  * IN step_id - id of the desired job step
+ * IN step_het_comp - component id of a het_step or NO_VAL for a normal step.
  * RET pointer to the job step's record, NULL on error
  */
-step_record_t *find_step_record(job_record_t *job_ptr, uint32_t step_id)
+step_record_t *find_step_record(job_record_t *job_ptr, uint32_t step_id,
+				uint32_t step_het_comp)
 {
+	step_id_info_t step_info = { .step_id = step_id,
+				     .step_het_comp = step_het_comp };
 	if (job_ptr == NULL)
 		return NULL;
 
-	return list_find_first(job_ptr->step_list, _find_step_id, &step_id);
+	return list_find_first(job_ptr->step_list, _find_step_id, &step_info);
 }
 
 
@@ -587,7 +604,7 @@ int job_step_signal(uint32_t job_id, uint32_t step_id,
 			return ESLURM_TRANSITION_STATE_NO_UPDATE;
 	}
 
-	step_ptr = find_step_record(job_ptr, step_id);
+	step_ptr = find_step_record(job_ptr, step_id, NO_VAL);
 	if (step_ptr == NULL) {
 		info("%s: %pJ StepId=%u not found",
 		     __func__, job_ptr, step_id);
@@ -813,7 +830,7 @@ int job_step_complete(uint32_t job_id, uint32_t step_id, uid_t uid,
 		return ESLURM_USER_ID_MISSING;
 	}
 
-	step_ptr = find_step_record(job_ptr, step_id);
+	step_ptr = find_step_record(job_ptr, step_id, NO_VAL);
 	if (step_ptr == NULL)
 		return ESLURM_INVALID_JOB_ID;
 
@@ -2768,7 +2785,8 @@ extern int step_create(job_step_create_request_msg_t *step_specs,
 		}
 
 		/* Get the step record from the first component in the step */
-		het_step_ptr = find_step_record(het_job_ptr, step_ptr->step_id);
+		het_step_ptr = find_step_record(het_job_ptr,
+						step_ptr->step_id, NO_VAL);
 
 		jobid = job_ptr->het_job_id;
 		if (!het_step_ptr || !het_step_ptr->switch_job) {
@@ -3503,7 +3521,7 @@ extern int step_partial_comp(step_complete_msg_t *req, uid_t uid,
 		return ESLURM_USER_ID_MISSING;
 	}
 
-	step_ptr = find_step_record(job_ptr, req->job_step_id);
+	step_ptr = find_step_record(job_ptr, req->job_step_id, NO_VAL);
 
 	if (step_ptr == NULL) {
 		info("step_partial_comp: %pJ StepID=%u invalid",
@@ -4166,7 +4184,7 @@ extern int load_step_state(job_record_t *job_ptr, Buf buffer,
 		goto unpack_error;
 	}
 
-	step_ptr = find_step_record(job_ptr, step_id);
+	step_ptr = find_step_record(job_ptr, step_id, NO_VAL);
 	if (step_ptr == NULL)
 		step_ptr = _create_step_record(job_ptr, start_protocol_ver);
 	if (step_ptr == NULL)
@@ -4464,7 +4482,8 @@ extern int update_step(step_update_request_msg_t *req, uid_t uid)
 			if (req->step_id >= job_ptr->next_step_id)
 				return ESLURM_INVALID_JOB_ID;
 			if (!(step_ptr
-			      = find_step_record(job_ptr, req->step_id))) {
+			      = find_step_record(
+				      job_ptr, req->step_id, NO_VAL))) {
 				/*
 				 * If updating this after the fact we need to
 				 * remake the step so we can send the updated
@@ -4502,7 +4521,8 @@ extern int update_step(step_update_request_msg_t *req, uid_t uid)
 		list_iterator_destroy (step_iterator);
 	} else {
 		if (!step_ptr)
-			step_ptr = find_step_record(job_ptr, req->step_id);
+			step_ptr = find_step_record(
+				job_ptr, req->step_id, NO_VAL);
 
 		if (!step_ptr)
 			return ESLURM_INVALID_JOB_ID;

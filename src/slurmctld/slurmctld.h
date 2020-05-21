@@ -1268,9 +1268,11 @@ extern part_record_t *find_part_record(char *name);
  *	job_id and step_id
  * IN job_ptr - pointer to job table entry to have step record added
  * IN step_id - id of the desired job step
+ * IN step_het_comp - component id of a het_step or NO_VAL for a normal step.
  * RET pointer to the job step's record, NULL on error
  */
-extern step_record_t *find_step_record(job_record_t *job_ptr, uint32_t step_id);
+extern step_record_t *find_step_record(job_record_t *job_ptr, uint32_t step_id,
+				       uint32_t step_het_comp);
 
 /*
  * free_null_array_recs - free an xmalloc'd job_array_struct_t structure inside
