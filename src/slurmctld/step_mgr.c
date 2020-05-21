@@ -666,7 +666,7 @@ int job_step_signal(uint32_t job_id, uint32_t step_id,
 
 	list_for_each(job_ptr->step_list, _step_signal, &step_signal);
 
-	if (!step_signal.found) {
+	if (!step_signal.found && !(step_signal.flags & KILL_FULL_JOB)) {
 		info("%s: %pJ StepId=%u not found",
 		     __func__, job_ptr, step_id);
 		return ESLURM_INVALID_JOB_ID;

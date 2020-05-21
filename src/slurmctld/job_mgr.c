@@ -15372,17 +15372,8 @@ static void _signal_job(job_record_t *job_ptr, int signal, uint16_t flags)
 #endif
 
 	if (notify_srun) {
-		ListIterator step_iterator;
-		step_record_t *step_ptr;
-		step_iterator = list_iterator_create(job_ptr->step_list);
-		while ((step_ptr = list_next(step_iterator))) {
-			/* Since we have already checked the uid,
-			 * we can send this signal as uid 0. */
-			job_step_signal(job_ptr->job_id, step_ptr->step_id,
-					signal, 0, 0);
-		}
-		list_iterator_destroy (step_iterator);
-
+		(void)job_step_signal(job_ptr->job_id, 0,
+				      signal, KILL_FULL_JOB, 0);
 		return;
 	}
 
