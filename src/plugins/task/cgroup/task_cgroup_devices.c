@@ -163,11 +163,11 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	while ((gres_device = list_next(dev_itr)))
 	{
 		char output[256];
-		strncat(output, "lancium: we are in task_cgroup_devices_init and found device=", 20);
-		strcat(output, gres_device->major);
+		strcat(output, "lancium: we are in task_cgroup_devices_init and found fake device=");
+		strncat(output, gres_device->path, 14);
 		info("%s", output);
 
-		
+		info("we are mapping this to the pci_bus %s", list_pop(pci_list));
 	}
 	list_iterator_destroy(dev_itr);
 
