@@ -91,24 +91,24 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 	fp = popen(cmd, "r");
 	if (fp == NULL)
 	{
-		error("lancium: could not find nvidia bus_ids");
+		debug("lancium: could not find nvidia bus_ids");
 	}
 
-	info("lancium: attempting to get the nvidia pci buses-----------");
+	debug("lancium: attempting to get the nvidia pci buses-----------");
 	/* Read the output a line at a time - output it. */
 	while (fgets(res, sizeof(res), fp) != NULL)
 	{
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
 		{
 			list_append(pci_list, res);
-			info("test %s", res);
+			debug("lancium: found bus id %s", res);
 		}
 		else
 		{
-			info("lancium: no nvidia driver information found");
+			debug("lancium: no nvidia driver information found");
 		}
 	}
-	info("lancium: end of found nvidia pci buses--------------------");
+	debug("lancium: end of found nvidia pci buses--------------------");
 
 	/* close */
 	pclose(fp);
@@ -172,9 +172,9 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		char output[256];
 		strcat(output, "lancium: we are in task_cgroup_devices_init and found fake device=");
 		strncat(output, gres_device->path, 14);
-		info("%s", output);
+		debug("%s", output);
 
-		info("we are mapping this to the pci_bus %s", list_pop(pci_list));
+		debug("we are mapping this to the pci_bus %s", list_pop(pci_list));
 	}
 	list_iterator_destroy(dev_itr);
 
