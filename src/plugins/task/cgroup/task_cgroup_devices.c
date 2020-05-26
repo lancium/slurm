@@ -121,6 +121,24 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	} else
 		fclose(file);
 
+	/////////////////// LANCIUM INIT ///////////////////////////////////////////////////////////////////
+
+	List gres_list;
+	lancium_gres_plugin_get_all_gres(gres_list);
+
+	//iterate list and search for our fake_device to create maps to real device bus ids
+	gres_device_t *gres_device;
+	ListIterator dev_itr = list_iterator_create(gres_list);
+	while ((gres_device = list_next(dev_itr)))
+	{
+		char output[256];
+		strncat(output, "JASON LOOK FOR ME: ", 20);
+		strcat(output, gres_device->major);
+		info(output);
+	}
+	list_iterator_destroy(dev_itr);
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 	return SLURM_SUCCESS;
 

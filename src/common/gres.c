@@ -4788,6 +4788,42 @@ extern void gres_plugin_job_state_log(List gres_list, uint32_t job_id)
 	slurm_mutex_unlock(&gres_context_lock);
 }
 
+extern void lancium_gres_plugin_get_all_gres(List *gres_list)
+{
+	int j;
+	ListIterator dev_itr;
+	gres_device_t *gres_device;
+	List gres_devices;
+
+	//all gres contexts
+	for (j = 0; j < gres_context_cnt; j++)
+	{
+		if (!gres_context[j].ops.get_devices)
+			continue;
+
+		//all devices
+		gres_devices = (*(gres_context[j].ops.get_devices))();
+
+		if (!gres_devices || !list_count(gres_devices))
+			continue;
+
+		//add devices to supplied list
+		dev_itr = list_iterator_create(gres_devices);
+		while ((gres_device = list_next(dev_itr)))
+		{
+			//create list if not instantiated
+			if (!gres_list)
+				gres_list = list_create(NULL);
+
+			//set as not allocated
+			gres_device->alloc = 0;
+
+			list_append(gres_list, gres_device);
+		}
+		list_iterator_destroy(dev_itr);
+	}
+}
+
 extern List gres_plugin_get_allocated_devices(List gres_list, bool is_job)
 {
 	int i, j;
