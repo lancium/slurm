@@ -223,7 +223,7 @@ extern int gres_plugin_node_config_load(uint32_t cpu_cnt, char *node_name,
  */
 extern int gres_plugin_node_config_pack(Buf buffer);
 
-extern void lancium_gres_plugin_get_all_gres(List *gres_list);
+extern void lancium_gres_plugin_get_all_gres(List gres_list);
 
 /*
  * Set GRES devices as allocated or not for a particular job

@@ -123,8 +123,11 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 	/////////////////// LANCIUM INIT ///////////////////////////////////////////////////////////////////
 
-	List gres_list;
+	List gres_list = list_create(NULL);
 	lancium_gres_plugin_get_all_gres(gres_list);
+
+	List pci_list = list_create(NULL);
+	lancium_get_all_nvidia_bus_ids(pci_list);
 
 	//iterate list and search for our fake_device to create maps to real device bus ids
 	gres_device_t *gres_device;
@@ -132,9 +135,11 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	while ((gres_device = list_next(dev_itr)))
 	{
 		char output[256];
-		strncat(output, "JASON LOOK FOR ME: ", 20);
+		strncat(output, "lancium: we are in task_cgroup_devices_init and found device=", 20);
 		strcat(output, gres_device->major);
-		info(output);
+		info("%s", output);
+
+		
 	}
 	list_iterator_destroy(dev_itr);
 

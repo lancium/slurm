@@ -4788,7 +4788,7 @@ extern void gres_plugin_job_state_log(List gres_list, uint32_t job_id)
 	slurm_mutex_unlock(&gres_context_lock);
 }
 
-extern void lancium_gres_plugin_get_all_gres(List *gres_list)
+extern void lancium_gres_plugin_get_all_gres(List gres_list)
 {
 	int j;
 	ListIterator dev_itr;
@@ -4811,10 +4811,6 @@ extern void lancium_gres_plugin_get_all_gres(List *gres_list)
 		dev_itr = list_iterator_create(gres_devices);
 		while ((gres_device = list_next(dev_itr)))
 		{
-			//create list if not instantiated
-			if (!gres_list)
-				gres_list = list_create(NULL);
-
 			//set as not allocated
 			gres_device->alloc = 0;
 
