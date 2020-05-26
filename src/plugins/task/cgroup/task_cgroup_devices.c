@@ -85,7 +85,7 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 
 	FILE *fp;
 	char res[128];
-	char *cmd = "ls /proc/driver/nvidia/gpus";
+	char *cmd = "ls /proc/driver/nvidia/gpus 2>&1";
 
 	/* Open the command for reading. */
 	fp = popen(cmd, "r");
@@ -101,13 +101,12 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
 		{
 			list_append(pci_list, res);
-			info("%s", res);
+			info("test %s", res);
 		}
 		else
 		{
 			info("lancium: no nvidia driver information found");
 		}
-		
 	}
 	info("lancium: end of found nvidia pci buses--------------------");
 
