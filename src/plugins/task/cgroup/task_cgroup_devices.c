@@ -98,8 +98,16 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 	/* Read the output a line at a time - output it. */
 	while (fgets(res, sizeof(res), fp) != NULL)
 	{
-		list_append(pci_list, res);
-		info("%s", res);
+		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
+		{
+			list_append(pci_list, res);
+			info("%s", res);
+		}
+		else
+		{
+			info("lancium: no nvidia driver information found");
+		}
+		
 	}
 	info("lancium: end of found nvidia pci buses--------------------");
 
