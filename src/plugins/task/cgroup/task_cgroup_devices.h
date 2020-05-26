@@ -39,10 +39,10 @@
 
 #include "src/common/xcgroup_read_config.h"
 
+extern void lancium_get_all_nvidia_bus_ids(List pci_list);
+
 /* initialize devices subsystem of task/cgroup */
 extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf);
-
-extern void lancium_get_all_nvidia_bus_ids(List pci_list);
 
 /* release devices subsystem resources */
 extern int task_cgroup_devices_fini(slurm_cgroup_conf_t *slurm_cgroup_conf);

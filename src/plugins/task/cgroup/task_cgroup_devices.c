@@ -79,6 +79,16 @@ static void _calc_device_major(char *dev_path[PATH_MAX],
 
 static int _read_allowed_devices_file(char *allowed_devices[PATH_MAX]);
 
+
+typedef struct
+{
+    char fake_device_path[128];
+    char bus_id[128];
+} lancium_device_mapping_t;
+
+lancium_device_mapping_t *mapping;
+int mapping_cnt = 0;
+
 extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 {
 	//now we need to find the pci bus
@@ -164,9 +174,26 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	List pci_list = list_create(NULL);
 	lancium_get_all_nvidia_bus_ids(pci_list);
 
+	debug("lancium: about to map the fake devices to bus ids");
+
+	int gres_cnt = list_count(gres_list);
+
+	if(list_count(pci_list) < gres_cnt)
+	{
+		error("lancium: gres list size is larger than the number of gpus on the system! This is unexpected and not currently handled. Have you added gres resources besides GPUs? \
+			If so, you need to revist the slurm plugin changes.");
+	}
+
+	mapping_cnt = gres_cnt;
+
+	//alocate space for the mapping
+	mapping = malloc(mapping_cnt * sizeof(lancium_device_mapping_t)); //needs to be released in fini (***)
+
 	//iterate list and search for our fake_device to create maps to real device bus ids
 	gres_device_t *gres_device;
 	ListIterator dev_itr = list_iterator_create(gres_list);
+	int idx = 0;
+
 	while ((gres_device = list_next(dev_itr)))
 	{
 		char output[256];
@@ -174,7 +201,14 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		strncat(output, gres_device->path, 14);
 		debug("%s", output);
 
-		debug("we are mapping this to the pci_bus %s", list_pop(pci_list));
+		char *bus = list_pop(pci_list);
+		debug("we are mapping this to the pci_bus %s", bus);
+
+		//this will need to be cleaned up later in fini (***)
+		strncpy(mapping[idx].fake_device_path, gres_device->path, 128);
+		strncpy(mapping[idx].bus_id, bus, 128);
+
+		idx++;
 	}
 	list_iterator_destroy(dev_itr);
 
