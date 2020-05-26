@@ -79,6 +79,34 @@ static void _calc_device_major(char *dev_path[PATH_MAX],
 
 static int _read_allowed_devices_file(char *allowed_devices[PATH_MAX]);
 
+extern void lancium_get_all_nvidia_bus_ids(List pci_list)
+{
+	//now we need to find the pci bus
+
+	FILE *fp;
+	char res[128];
+	char *cmd = "ls /proc/driver/nvidia/gpus";
+
+	/* Open the command for reading. */
+	fp = popen(cmd, "r");
+	if (fp == NULL)
+	{
+		error("lancium: could not find nvidia bus_ids");
+	}
+
+	info("lancium: attempting to get the nvidia pci buses-----------");
+	/* Read the output a line at a time - output it. */
+	while (fgets(res, sizeof(res), fp) != NULL)
+	{
+		list_append(pci_list, res);
+		info("%s", res);
+	}
+	info("lancium: end of found nvidia pci buses--------------------");
+
+	/* close */
+	pclose(fp);
+}
+
 extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 {
 	uint16_t cpunum;
