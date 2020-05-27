@@ -129,7 +129,7 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 	char res[128];
 	char cmd[128];
 
-	strcpy(cmd, "ls /proc/driver/nvidia/gpus/");
+	strcpy(cmd, "cat /proc/driver/nvidia/gpus/");
 	strncat(cmd, bus, 93); //should never get close, but protect the buffer
 	strcat(cmd, "/information 2>&1");
 
@@ -144,12 +144,12 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 	// Read the output a line at a time; instead of skipping to line 9, we doing this in case nvidia changes stuff in their output
 	while (fgets(res, sizeof(res), fp) != NULL)
 	{
-		char* start = strtok(res, "\t");
+		char* start = strtok(res, "\t\n");
 
-		if(strcmp(start, "Device Minor:") == 0)
+		if(strcmp(start, "Device Minor: ") == 0)
 		{
 			//we have found the right line, get the dev_num
-			char* dnumStr = strtok(NULL, "\t");
+			char* dnumStr = strtok(NULL, "\t\n");
 
 			//there appears to be a space infront of the dev_num, remove it
 			if(dnumStr[0] == ' ')
