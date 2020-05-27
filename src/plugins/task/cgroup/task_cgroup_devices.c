@@ -130,8 +130,8 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 	char cmd[128];
 
 	strcpy(cmd, "ls /proc/driver/nvidia/gpus/");
-	strncpy(cmd, bus, 93); //should never get close, but protect the buffer
-	strcpy(cmd, "/information 2>&1");
+	strncat(cmd, bus, 93); //should never get close, but protect the buffer
+	strcat(cmd, "/information 2>&1");
 
 	/* Open the command for reading. */
 	fp = popen(cmd, "r");
@@ -158,7 +158,7 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 			debug("lancium: we have found the current device_num=%s for bus_id=%s", dnumStr, bus);
 
 			//set input var
-			strcat(dev_path_out, "/dev/nvidia");
+			strcpy(dev_path_out, "/dev/nvidia");
 			strncat(dev_path_out, dnumStr, max_out_length-13); //protect buffer
 		}
 	}
