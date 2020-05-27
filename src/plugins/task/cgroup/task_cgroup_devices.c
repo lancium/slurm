@@ -178,7 +178,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 	int gres_cnt = list_count(gres_list);
 
-	if(list_count(pci_list) < gres_cnt)
+	if(gres_cnt > list_count(pci_list))
 	{
 		error("lancium: gres list size is larger than the number of gpus on the system! This is unexpected and not currently handled. Have you added gres resources besides GPUs? \
 			If so, you need to revist the slurm plugin changes.");
@@ -187,7 +187,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	mapping_cnt = gres_cnt;
 
 	//alocate space for the mapping
-	mapping = malloc(mapping_cnt * sizeof(lancium_device_mapping_t)); //needs to be released in fini (***)
+	mapping = malloc(mapping_cnt * sizeof(lancium_device_mapping_t)); //needs to be released in fini
 
 	//iterate list and search for our fake_device to create maps to real device bus ids
 	gres_device_t *gres_device;
@@ -196,15 +196,16 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 	while ((gres_device = list_next(dev_itr)))
 	{
-		char output[256];
+		char output[128];
 		strcat(output, "lancium: we are in task_cgroup_devices_init and found fake device=");
 		strncat(output, gres_device->path, 14);
 		debug("%s", output);
 
+		//get a bus_id from the list
 		char *bus = list_pop(pci_list);
 		debug("we are mapping this to the pci_bus %s", bus);
 
-		//this will need to be cleaned up later in fini (***)
+		//assign a consistant mapping
 		strncpy(mapping[idx].fake_device_path, gres_device->path, 128);
 		strncpy(mapping[idx].bus_id, bus, 128);
 
@@ -271,6 +272,12 @@ extern int task_cgroup_devices_fini(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	cgroup_allowed_devices_file[0] = '\0';
 
 	xcgroup_ns_destroy(&devices_ns);
+
+	/////////////////// LANCIUM CLEANUP ///////////////////////////////////////////////////////////////////
+
+	free(mapping);
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 	xcpuinfo_fini();
 	return SLURM_SUCCESS;
