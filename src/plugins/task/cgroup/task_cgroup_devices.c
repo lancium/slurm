@@ -92,7 +92,6 @@ int mapping_cnt = 0;
 extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 {
 	//now we need to find the pci bus
-
 	FILE *fp;
 	char res[128];
 	char *cmd = "ls /proc/driver/nvidia/gpus 2>&1";
@@ -105,7 +104,7 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 	}
 
 	debug("lancium: attempting to get the nvidia pci buses-----------");
-	/* Read the output a line at a time - output it. */
+	// Read the output a line at a time
 	while (fgets(res, sizeof(res), fp) != NULL)
 	{
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
@@ -119,6 +118,50 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 		}
 	}
 	debug("lancium: end of found nvidia pci buses--------------------");
+
+	/* close */
+	pclose(fp);
+}
+
+extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_length, char* bus)
+{
+	FILE *fp;
+	char res[128];
+	char cmd[128];
+
+	strcpy(cmd, "ls /proc/driver/nvidia/gpus/");
+	strncpy(cmd, bus, 93); //should never get close, but protect the buffer
+	strcpy(cmd, "/information 2>&1");
+
+	/* Open the command for reading. */
+	fp = popen(cmd, "r");
+	if (fp == NULL)
+	{
+		debug("lancium: could not find nvidia device information about bus_id=%s", bus);
+	}
+
+	debug("lancium: attempting to get the device minor number for device with bus_id=%s", bus);
+	// Read the output a line at a time; instead of skipping to line 9, we doing this in case nvidia changes stuff in their output
+	while (fgets(res, sizeof(res), fp) != NULL)
+	{
+		char* start = strtok(res, "\t");
+
+		if(strcmp(start, "Device Minor:") == 0)
+		{
+			//we have found the right line, get the dev_num
+			char* dnumStr = strtok(NULL, "\t");
+
+			//there appears to be a space infront of the dev_num, remove it
+			if(dnumStr[0] == ' ')
+				dnumStr++;
+
+			debug("lancium: we have found the current device_num=%s for bus_id=%s", dnumStr, bus);
+
+			//set input var
+			strcat(dev_path_out, "/dev/nvidia");
+			strncat(dev_path_out, dnumStr, max_out_length-13); //protect buffer
+		}
+	}
 
 	/* close */
 	pclose(fp);
@@ -192,7 +235,6 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	//iterate list and search for our fake_device to create maps to real device bus ids
 	gres_device_t *gres_device;
 	ListIterator dev_itr = list_iterator_create(gres_list);
-	int idx = 0;
 
 	while ((gres_device = list_next(dev_itr)))
 	{
@@ -205,11 +247,17 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		char *bus = list_pop(pci_list);
 		debug("we are mapping this to the pci_bus %s", bus);
 
-		//assign a consistant mapping
-		strncpy(mapping[idx].fake_device_path, gres_device->path, 128);
-		strncpy(mapping[idx].bus_id, bus, 128);
+		//get an index and check its bounds
+		int index = gres_device->dev_num;
 
-		idx++;
+		if(index >= mapping_cnt || index < 0)
+		{
+			fatal_abort("lancium: we appear to have made an invalid assumption that device numbers are usuable as index. We need to exit otherwise we will write out of bounds. Info => device: %s dev_num/index: %d", gres_device->path, index);
+		}
+
+		//assign a consistant mapping
+		strncpy(mapping[index].fake_device_path, gres_device->path, 128);
+		strncpy(mapping[index].bus_id, bus, 128);
 	}
 	list_iterator_destroy(dev_itr);
 
@@ -437,19 +485,50 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 	if (device_list) {
 		itr = list_iterator_create(device_list);
 		while ((gres_device = list_next(itr))) {
+
+			//////////////////////////// LANCIUM MODIFICATION //////////////////////////////////////////
+
+			int cur_fake_dev_num = gres_device->dev_num;
+
+			debug("lancium: about to use device mapping for cgroup for fake device=%s", gres_device->path);
+
+			//confirm index/device match
+			if(strcmp(mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
+			{
+				error("lancium: something is wrong with the device mapping initilization!");
+			}
+
+			//find the real device we want (bus_id)
+			char* desired_bus = mapping[cur_fake_dev_num].bus_id;
+
+			debug("lancium: this device has mapped to bus_id=%s", desired_bus);
+
+			//now we need to find what device minor number this cards is actually at now
+			char cur_real_dev_path[64];
+			lancium_find_dev_path_from_bus(cur_real_dev_path, 64, desired_bus);
+
+			debug("lancium: this device has mapped to dev_path=%s", cur_real_dev_path);
+
+			//get major from path
+			char* cur_real_major = gres_device_major(cur_real_dev_path);
+
+			debug("lancium: this device has mapped to dev_major=%s", cur_real_major);
+
 			if (gres_device->alloc) {
 				debug("Allowing access to device %s(%s) for job",
-				      gres_device->major, gres_device->path);
+				      cur_real_major, cur_real_dev_path);
 				xcgroup_set_param(&job_devices_cg,
 						  "devices.allow",
-						  gres_device->major);
+						  cur_real_major);
 			} else {
 				debug("Not allowing access to device %s(%s) for job",
-				       gres_device->major, gres_device->path);
+				       cur_real_major, cur_real_dev_path);
 				xcgroup_set_param(&job_devices_cg,
 						  "devices.deny",
-						  gres_device->major);
+						  cur_real_major);
 			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
 		}
 		list_iterator_destroy(itr);
 		list_destroy(device_list);

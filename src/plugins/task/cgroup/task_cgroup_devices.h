@@ -40,6 +40,7 @@
 #include "src/common/xcgroup_read_config.h"
 
 extern void lancium_get_all_nvidia_bus_ids(List pci_list);
+extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_length, char* bus);
 
 /* initialize devices subsystem of task/cgroup */
 extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf);
