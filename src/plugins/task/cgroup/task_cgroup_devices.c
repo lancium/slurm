@@ -258,7 +258,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		//get a bus_id from the list
 		bus = list_pop(pci_list);
 		
-		debug("we are mapping this to the pci_bus %s", bus);
+		debug("lancium: we are mapping this to the pci_bus %s", bus);
 
 		//get an index and check its bounds
 		int index = gres_device->dev_num;
@@ -533,13 +533,13 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 			debug("lancium: this device has mapped to dev_major=%s", cur_real_major);
 
 			if (gres_device->alloc) {
-				debug("Allowing access to device %s(%s) for job",
+				debug("lancium: Allowing access to device %s(%s) for job",
 				      cur_real_major, cur_real_dev_path);
 				xcgroup_set_param(&job_devices_cg,
 						  "devices.allow",
 						  cur_real_major);
 			} else {
-				debug("Not allowing access to device %s(%s) for job",
+				debug("lancium: Not allowing access to device %s(%s) for job",
 				       cur_real_major, cur_real_dev_path);
 				xcgroup_set_param(&job_devices_cg,
 						  "devices.deny",
@@ -597,21 +597,51 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 		if (device_list) {
 			itr = list_iterator_create(device_list);
 			while ((gres_device = list_next(itr))) {
-				if (gres_device->alloc) {
-					debug("Allowing access to device %s(%s) for step",
-					      gres_device->major,
-					      gres_device->path);
-					xcgroup_set_param(&step_devices_cg,
-							  "devices.allow",
-							  gres_device->major);
-				} else {
-					debug("Not allowing access to device %s(%s) for step",
-					      gres_device->major,
-					      gres_device->path);
-					xcgroup_set_param(&step_devices_cg,
-							  "devices.deny",
-							  gres_device->major);
-				}
+
+			//////////////////////////// LANCIUM MODIFICATION //////////////////////////////////////////
+
+			int cur_fake_dev_num = gres_device->dev_num;
+
+			debug("lancium: about to use device mapping for cgroup for fake device=%s", gres_device->path);
+
+			//confirm index/device match
+			if(strcmp(mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
+			{
+				error("lancium: something is wrong with the device mapping initilization!");
+			}
+
+			//find the real device we want (bus_id)
+			char* desired_bus = mapping[cur_fake_dev_num].bus_id;
+
+			debug("lancium: this device has mapped to bus_id=%s", desired_bus);
+
+			//now we need to find what device minor number this cards is actually at now
+			char cur_real_dev_path[64];
+			lancium_find_dev_path_from_bus(cur_real_dev_path, 64, desired_bus);
+
+			debug("lancium: this device has mapped to dev_path=%s", cur_real_dev_path);
+
+			//get major from path
+			char* cur_real_major = gres_device_major(cur_real_dev_path);
+
+			debug("lancium: this device has mapped to dev_major=%s", cur_real_major);
+
+			if (gres_device->alloc) {
+				debug("lancium: Allowing access to device %s(%s) for job",
+				      cur_real_major, cur_real_dev_path);
+				xcgroup_set_param(&step_devices_cg,
+						  "devices.allow",
+						  cur_real_major);
+			} else {
+				debug("lancium: Not allowing access to device %s(%s) for job",
+				       cur_real_major, cur_real_dev_path);
+				xcgroup_set_param(&step_devices_cg,
+						  "devices.deny",
+						  cur_real_major);
+			}
+
+			////////////////////////////////////////////////////////////////////////////////////////////
+
 			}
 			list_iterator_destroy(itr);
 			list_destroy(device_list);
