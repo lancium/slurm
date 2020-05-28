@@ -105,7 +105,7 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 
 	debug("lancium: attempting to get the nvidia pci buses-----------");
 	// Read the output a line at a time
-	while (fgets(res, sizeof(128), fp) != NULL)
+	while (fgets(res, 128 * sizeof(char), fp) != NULL)
 	{
 		debug("lancium: res is %s", res);
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
