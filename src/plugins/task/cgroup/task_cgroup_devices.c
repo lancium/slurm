@@ -168,6 +168,11 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 	pclose(fp);
 }
 
+void __lancium_del_node(void* str)
+{
+	free(str);
+}
+
 extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 {
 	uint16_t cpunum;
@@ -215,7 +220,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	List gres_list = list_create(NULL);
 	lancium_gres_plugin_get_all_gres(gres_list);
 
-	List pci_list = list_create(NULL);
+	List pci_list = list_create(__lancium_del_node);
 	lancium_get_all_nvidia_bus_ids(pci_list);
 
 	debug("lancium: about to map the fake devices to bus ids");
@@ -246,7 +251,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		debug("%s", output);
 
 		//get a bus_id from the list
-		bus = list_peek(pci_list);
+		bus = list_pop(pci_list);
 		
 		debug("we are mapping this to the pci_bus %s", bus);
 
@@ -263,11 +268,11 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		//assign a consistant mapping
 		strncpy(mapping[index].fake_device_path, gres_device->path, 128);
 		strncpy(mapping[index].bus_id, bus, 128);
-
-		free(bus);
-		bus = list_next(pci_list);
 	}
 	list_iterator_destroy(dev_itr);
+
+	//this should destroy the allocated string inside pci_list
+	list_destroy(pci_list);
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 
