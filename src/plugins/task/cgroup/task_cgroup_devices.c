@@ -236,6 +236,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	//iterate list and search for our fake_device to create maps to real device bus ids
 	gres_device_t *gres_device;
 	ListIterator dev_itr = list_iterator_create(gres_list);
+	char *bus;
 
 	while ((gres_device = list_next(dev_itr)))
 	{
@@ -245,7 +246,8 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		debug("%s", output);
 
 		//get a bus_id from the list
-		char *bus = list_pop(pci_list);
+		bus = list_peek(pci_list);
+		
 		debug("we are mapping this to the pci_bus %s", bus);
 
 		//get an index and check its bounds
@@ -263,6 +265,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		strncpy(mapping[index].bus_id, bus, 128);
 
 		free(bus);
+		bus = list_next(pci_list);
 	}
 	list_iterator_destroy(dev_itr);
 
