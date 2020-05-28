@@ -93,7 +93,7 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 {
 	//now we need to find the pci bus
 	FILE *fp;
-	char *res = malloc(128 * sizeof(char)); //this is freed when removed from the list
+	char *res;
 	char *cmd = "ls /proc/driver/nvidia/gpus 2>&1";
 
 	/* Open the command for reading. */
@@ -110,7 +110,12 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
 		{
 			res = strtok(res, "\n"); //remove new line char
-			list_append(pci_list, res);
+
+			//we need to make a copy
+			char* scpy = malloc(128 * sizeof(char)); //this is freed when removed from the list
+			strncpy(scpy, res, 128);
+
+			list_append(pci_list, scpy);
 			debug("lancium: found bus id %s", res);
 		}
 		else
