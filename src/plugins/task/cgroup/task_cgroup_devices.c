@@ -110,6 +110,7 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 		debug("lancium: res is %s", res);
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
 		{
+			res = strtok(res, "\n"); //remove new line char
 			list_append(pci_list, res);
 			debug("lancium: found bus id %s", res);
 		}
