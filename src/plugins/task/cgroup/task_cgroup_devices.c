@@ -256,6 +256,8 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 			fatal_abort("lancium: we appear to have made an invalid assumption that device numbers are usuable as index. We need to exit otherwise we will write out of bounds. Info => device: %s dev_num/index: %d", gres_device->path, index);
 		}
 
+		debug("lancium: index is=%d", index);
+
 		//assign a consistant mapping
 		strncpy(mapping[index].fake_device_path, gres_device->path, 128);
 		strncpy(mapping[index].bus_id, bus, 128);
