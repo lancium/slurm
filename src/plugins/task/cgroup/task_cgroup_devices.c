@@ -93,7 +93,7 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 {
 	//now we need to find the pci bus
 	FILE *fp;
-	char res[128];
+	char *res = malloc(128 * sizeof(char)); //this is freed when removed from the list
 	char *cmd = "ls /proc/driver/nvidia/gpus 2>&1";
 
 	/* Open the command for reading. */
@@ -258,6 +258,8 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		//assign a consistant mapping
 		strncpy(mapping[index].fake_device_path, gres_device->path, 128);
 		strncpy(mapping[index].bus_id, bus, 128);
+
+		free(bus);
 	}
 	list_iterator_destroy(dev_itr);
 
