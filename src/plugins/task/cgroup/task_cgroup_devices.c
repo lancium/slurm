@@ -107,7 +107,6 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 	// Read the output a line at a time
 	while (fgets(res, 128 * sizeof(char), fp) != NULL)
 	{
-		debug("lancium: res is %s", res);
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
 		{
 			res = strtok(res, "\n"); //remove new line char
@@ -241,7 +240,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	while ((gres_device = list_next(dev_itr)))
 	{
 		char output[128];
-		strcat(output, "lancium: we are in task_cgroup_devices_init and found fake device=");
+		strcpy(output, "lancium: we are in task_cgroup_devices_init and found fake device=");
 		strncat(output, gres_device->path, 14);
 		debug("%s", output);
 
