@@ -654,7 +654,7 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 			//confirm index/device match
 			if(strcmp(lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
 			{
-				error("lancium: something is wrong with the device mapping initilization!");
+				error("lancium: something is wrong with the device mapping initilization! %s != %s", lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path);
 			}
 
 			//find the real device we want (bus_id)
