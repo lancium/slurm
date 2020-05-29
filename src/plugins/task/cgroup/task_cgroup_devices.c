@@ -133,7 +133,7 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 
 	strcpy(cmd, "cat /proc/driver/nvidia/gpus/");
 	strncat(cmd, bus, 93); //should never get close, but protect the buffer
-	strcat(cmd, "/information 2>&1");
+	strcat(cmd, "/information");
 
 	/* Open the command for reading. */
 	fp = popen(cmd, "r");
@@ -143,6 +143,19 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 	}
 
 	debug("lancium: attempting to get the device minor number for device with bus_id=%s", bus);
+
+	//test if stdout is empty, if so then the file did not exist
+	fseek(fp, 0, SEEK_END); // goto end of file
+	if (ftell(fp) == 0)
+	{
+		//stdout is empty
+		debug("lancium: could not find the dev path for this bus %s. This probably means that it is detached", bus);
+		strcpy(dev_path_out, "/dev/NO_DEVICE");
+		pclose(fp);
+		return;
+	}
+	fseek(fp, 0, SEEK_SET); // goto begin of file
+
 	// Read the output a line at a time; instead of skipping to line 9, we doing this in case nvidia changes stuff in their output
 	while (fgets(res, sizeof(res), fp) != NULL)
 	{
@@ -162,6 +175,8 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 			//set input var
 			strcpy(dev_path_out, "/dev/nvidia");
 			strncat(dev_path_out, dnumStr, max_out_length-13); //protect buffer
+
+			break;
 		}
 	}
 
@@ -568,6 +583,21 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 			//now we need to find what device minor number this cards is actually at now
 			char cur_real_dev_path[64];
 			lancium_find_dev_path_from_bus(cur_real_dev_path, 64, desired_bus);
+
+			if(strcmp(cur_real_dev_path, "/dev/NO_DEVICE") == 0)
+			{
+				//this device isn't present, it should not be what we are looking for; we should look into if we still need to block these devices
+				//in case they return to the host while the job is running. However, it is not as simple as just blocking gres_device->major as this is
+				//not the real device. in fact, until it returns we have no idea what device this bus will become
+
+				//therefore, instead of loops through and checking if they are our devices or not. we need to start with all the devices in deny and then
+				//add our devices to allow as we find them. This is because we cannot check the device numbers of GPUs that are attached obviously. therefore,
+				//we cant actually figure out which device to block through this method.
+
+				//remember to change in BOTH locations
+
+				debug("lancium: this is currently broken behavior. see comment in source code for plans to fix this");
+			}
 
 			debug("lancium: this device has mapped to dev_path=%s", cur_real_dev_path);
 
