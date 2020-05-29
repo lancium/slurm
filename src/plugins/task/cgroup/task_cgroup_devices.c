@@ -93,7 +93,7 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 {
 	//now we need to find the pci bus
 	FILE *fp;
-	char *res;
+	char *res = NULL;
 	char *cmd = "ls /proc/driver/nvidia/gpus 2>&1";
 
 	/* Open the command for reading. */
@@ -107,6 +107,9 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 	// Read the output a line at a time
 	while (fgets(res, 128 * sizeof(char), fp) != NULL)
 	{
+		if(res == NULL)
+			error("lancium: failed to get ls output for finding nvidia pci buses");
+
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
 		{
 			res = strtok(res, "\n"); //remove new line char
