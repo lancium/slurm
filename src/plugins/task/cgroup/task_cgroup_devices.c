@@ -85,11 +85,11 @@ typedef struct
     char bus_id[128];
 } lancium_device_mapping_t;
 
-extern bool lancium_init_done;
+bool lancium_init_done;
 //this is never deleted but we would only want to delete this at the end of the program
 //we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
-extern lancium_device_mapping_t *lancium_mapping;
-extern int lancium_mapping_cnt;
+lancium_device_mapping_t *lancium_mapping;
+int lancium_mapping_cnt;
 
 extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 {
