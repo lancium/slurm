@@ -79,18 +79,14 @@ static void _calc_device_major(char *dev_path[PATH_MAX],
 
 static int _read_allowed_devices_file(char *allowed_devices[PATH_MAX]);
 
-
 typedef struct
 {
     char fake_device_path[128];
     char bus_id[128];
 } lancium_device_mapping_t;
 
-static bool lancium_init_done = false;
-//this is never deleted but we would only want to delete this at the end of the program
-//we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
-static lancium_device_mapping_t *lancium_mapping; 
-static int lancium_mapping_cnt = 0;
+//this is an export of the persistant mapping defined in task_cgroup_devices_init
+static lancium_device_mapping_t *lancium_mapping_export;
 
 extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 {
@@ -225,6 +221,12 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 	/////////////////// LANCIUM INIT ///////////////////////////////////////////////////////////////////
 
+	static bool lancium_init_done = false;
+	//this is never deleted but we would only want to delete this at the end of the program
+	//we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
+	static lancium_device_mapping_t *lancium_mapping;
+	static int lancium_mapping_cnt = 0;
+
 	//this init is ran for every job, WE ONLY WANT TO DO THIS ONE TIME
 	if (lancium_init_done == false)
 	{
@@ -247,7 +249,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		lancium_mapping_cnt = gres_cnt;
 
 		//alocate space for the mapping
-		lancium_mapping = malloc(lancium_mapping_cnt * sizeof(lancium_device_mapping_t)); //needs to be released in fini
+		lancium_mapping = malloc(lancium_mapping_cnt * sizeof(lancium_device_mapping_t)); //malloc but this cannot be easily freed, see comment on declaration
 
 		//iterate list and search for our fake_device to create maps to real device bus ids
 		gres_device_t *gres_device;
@@ -286,6 +288,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		list_destroy(pci_list);
 
 		lancium_init_done = true;
+		lancium_mapping_export = lancium_mapping;
 		debug("lancium: GPU mapping init done");
 	}
 	else
@@ -519,13 +522,13 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 			debug("lancium: about to use device mapping for cgroup for fake device=%s", gres_device->path);
 
 			//confirm index/device match
-			if(strcmp(lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
+			if(strcmp(lancium_mapping_export[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
 			{
 				error("lancium: something is wrong with the device mapping initilization!");
 			}
 
 			//find the real device we want (bus_id)
-			char* desired_bus = lancium_mapping[cur_fake_dev_num].bus_id;
+			char* desired_bus = lancium_mapping_export[cur_fake_dev_num].bus_id;
 
 			debug("lancium: this device has mapped to bus_id=%s", desired_bus);
 
@@ -613,13 +616,13 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 			debug("lancium: about to use device mapping for cgroup for fake device=%s", gres_device->path);
 
 			//confirm index/device match
-			if(strcmp(lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
+			if(strcmp(lancium_mapping_export[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
 			{
 				error("lancium: something is wrong with the device mapping initilization!");
 			}
 
 			//find the real device we want (bus_id)
-			char* desired_bus = lancium_mapping[cur_fake_dev_num].bus_id;
+			char* desired_bus = lancium_mapping_export[cur_fake_dev_num].bus_id;
 
 			debug("lancium: this device has mapped to bus_id=%s", desired_bus);
 
