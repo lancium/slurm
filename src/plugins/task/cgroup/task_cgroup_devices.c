@@ -85,12 +85,6 @@ typedef struct
     char bus_id[128];
 } lancium_device_mapping_t;
 
-bool lancium_init_done;
-//this is never deleted but we would only want to delete this at the end of the program
-//we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
-lancium_device_mapping_t *lancium_mapping;
-int lancium_mapping_cnt;
-
 extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 {
 	//now we need to find the pci bus
@@ -224,31 +218,42 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 	/////////////////// LANCIUM INIT ///////////////////////////////////////////////////////////////////
 
-	debug("lancium_init_done is=%d", lancium_init_done);
+	int lancium_mapping_cnt;
+	//this is never deleted but we would only want to delete this at the end of the program
+	//we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
+	lancium_device_mapping_t *lancium_mapping;
 
-	//this init is ran for every job, WE ONLY WANT TO DO THIS ONE TIME
+	//JASON: replace this "false" with checking if the file already exists
+	bool lancium_init_done = false;
+
+	debug("mapping file exists=%d", lancium_init_done);
+
+	List gres_list = list_create(NULL);
+	lancium_gres_plugin_get_all_gres(gres_list);
+
+	List pci_list = list_create(__lancium_del_node);
+	lancium_get_all_nvidia_bus_ids(pci_list);
+
+	debug("lancium: about to map the fake devices to bus ids");
+
+	int gres_cnt = list_count(gres_list);
+
+	if (gres_cnt > list_count(pci_list))
+	{
+		fatal_abort("lancium: gres list size is larger than the number of gpus on the system! This is unexpected and not currently handled. Have you added gres resources besides GPUs? \
+			If so, you need to revist the slurm plugin changes.");
+	}
+
+	lancium_mapping_cnt = gres_cnt;
+
+	lancium_mapping = malloc(lancium_mapping_cnt * sizeof(lancium_device_mapping_t)); //malloc but this cannot be easily freed, see comment on declaration
+
+	//this init is ran for every job, WE ONLY WANT TO DO THIS IF THE FILE DOESN'T EXIST ALREADY
 	if (lancium_init_done == false)
 	{
-		List gres_list = list_create(NULL);
-		lancium_gres_plugin_get_all_gres(gres_list);
-
-		List pci_list = list_create(__lancium_del_node);
-		lancium_get_all_nvidia_bus_ids(pci_list);
-
-		debug("lancium: about to map the fake devices to bus ids");
-
-		int gres_cnt = list_count(gres_list);
-
-		if (gres_cnt > list_count(pci_list))
-		{
-			fatal_abort("lancium: gres list size is larger than the number of gpus on the system! This is unexpected and not currently handled. Have you added gres resources besides GPUs? \
-			If so, you need to revist the slurm plugin changes.");
-		}
-
-		lancium_mapping_cnt = gres_cnt;
-
-		//alocate space for the mapping
-		lancium_mapping = malloc(lancium_mapping_cnt * sizeof(lancium_device_mapping_t)); //malloc but this cannot be easily freed, see comment on declaration
+		///////////////////////////////////////////////////
+		//JASON:create mapping file HERE
+		///////////////////////////////////////////////////
 
 		//iterate list and search for our fake_device to create maps to real device bus ids
 		gres_device_t *gres_device;
@@ -278,6 +283,10 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 			debug("lancium: index is=%d", index);
 
 			//assign a consistant mapping
+			///////////////////////////////////////////////////
+			//JASON:write a line to the mapping file
+			///////////////////////////////////////////////////
+
 			strncpy(lancium_mapping[index].fake_device_path, gres_device->path, 128);
 			strncpy(lancium_mapping[index].bus_id, bus, 128);
 		}
@@ -286,11 +295,12 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		//this should destroy the allocated string inside pci_list
 		list_destroy(pci_list);
 
-		lancium_init_done = true;
-		debug("lancium: GPU mapping init done");
+		debug("lancium: GPU mapping file created");
 	}
 	else
 	{
+		//the file exists, we need to parse it and write the information into lancium_mapping
+
 		debug("lancium: skipping building gpu bus mapping as we've already done this");
 	}
 
