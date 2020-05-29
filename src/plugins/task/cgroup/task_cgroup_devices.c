@@ -86,8 +86,9 @@ typedef struct
     char bus_id[128];
 } lancium_device_mapping_t;
 
-lancium_device_mapping_t *mapping;
-int mapping_cnt = 0;
+static bool lancium_init_done = false;
+static lancium_device_mapping_t *lancium_mapping;
+static int lancium_mapping_cnt = 0;
 
 extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 {
@@ -107,7 +108,6 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 	// Read the output a line at a time
 	while (fgets(res, sizeof(res), fp) != NULL)
 	{
-		debug("lancium: res=%s", res);
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
 		{
 			char* clean = strtok(res, "\n");
@@ -223,62 +223,72 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 	/////////////////// LANCIUM INIT ///////////////////////////////////////////////////////////////////
 
-	List gres_list = list_create(NULL);
-	lancium_gres_plugin_get_all_gres(gres_list);
-
-	List pci_list = list_create(__lancium_del_node);
-	lancium_get_all_nvidia_bus_ids(pci_list);
-
-	debug("lancium: about to map the fake devices to bus ids");
-
-	int gres_cnt = list_count(gres_list);
-
-	if(gres_cnt > list_count(pci_list))
+	//this init is ran for every job, WE ONLY WANT TO DO THIS ONE TIME
+	if (lancium_init_done == false)
 	{
-		fatal_abort("lancium: gres list size is larger than the number of gpus on the system! This is unexpected and not currently handled. Have you added gres resources besides GPUs? \
-			If so, you need to revist the slurm plugin changes.");
-	}
+		List gres_list = list_create(NULL);
+		lancium_gres_plugin_get_all_gres(gres_list);
 
-	mapping_cnt = gres_cnt;
+		List pci_list = list_create(__lancium_del_node);
+		lancium_get_all_nvidia_bus_ids(pci_list);
 
-	//alocate space for the mapping
-	mapping = malloc(mapping_cnt * sizeof(lancium_device_mapping_t)); //needs to be released in fini
+		debug("lancium: about to map the fake devices to bus ids");
 
-	//iterate list and search for our fake_device to create maps to real device bus ids
-	gres_device_t *gres_device;
-	ListIterator dev_itr = list_iterator_create(gres_list);
-	char *bus;
+		int gres_cnt = list_count(gres_list);
 
-	while ((gres_device = list_next(dev_itr)))
-	{
-		char output[128];
-		strcpy(output, "lancium: we are in task_cgroup_devices_init and found fake device=");
-		strncat(output, gres_device->path, 14);
-		debug("%s", output);
-
-		//get a bus_id from the list
-		bus = list_pop(pci_list);
-		
-		debug("lancium: we are mapping this to the pci_bus %s", bus);
-
-		//get an index and check its bounds
-		int index = gres_device->dev_num;
-
-		if(index >= mapping_cnt || index < 0)
+		if (gres_cnt > list_count(pci_list))
 		{
-			fatal_abort("lancium: we appear to have made an invalid assumption that device numbers are usuable as index. We need to exit otherwise we will write out of bounds. Info => device: %s dev_num/index: %d", gres_device->path, index);
+			fatal_abort("lancium: gres list size is larger than the number of gpus on the system! This is unexpected and not currently handled. Have you added gres resources besides GPUs? \
+			If so, you need to revist the slurm plugin changes.");
 		}
 
-		debug("lancium: index is=%d", index);
+		lancium_mapping_cnt = gres_cnt;
 
-		//assign a consistant mapping
-		strncpy(mapping[index].fake_device_path, gres_device->path, 128);
-		strncpy(mapping[index].bus_id, bus, 128);
+		//alocate space for the mapping
+		lancium_mapping = malloc(lancium_mapping_cnt * sizeof(lancium_device_mapping_t)); //needs to be released in fini
+
+		//iterate list and search for our fake_device to create maps to real device bus ids
+		gres_device_t *gres_device;
+		ListIterator dev_itr = list_iterator_create(gres_list);
+		char *bus;
+
+		while ((gres_device = list_next(dev_itr)))
+		{
+			char output[128];
+			strcpy(output, "lancium: we are in task_cgroup_devices_init and found fake device=");
+			strncat(output, gres_device->path, 14);
+			debug("%s", output);
+
+			//get a bus_id from the list
+			bus = list_pop(pci_list);
+
+			debug("lancium: we are mapping this to the pci_bus %s", bus);
+
+			//get an index and check its bounds
+			int index = gres_device->dev_num;
+
+			if (index >= lancium_mapping_cnt || index < 0)
+			{
+				fatal_abort("lancium: we appear to have made an invalid assumption that device numbers are usuable as index. We need to exit otherwise we will write out of bounds. Info => device: %s dev_num/index: %d", gres_device->path, index);
+			}
+
+			debug("lancium: index is=%d", index);
+
+			//assign a consistant mapping
+			strncpy(lancium_mapping[index].fake_device_path, gres_device->path, 128);
+			strncpy(lancium_mapping[index].bus_id, bus, 128);
+		}
+		list_iterator_destroy(dev_itr);
+
+		//this should destroy the allocated string inside pci_list
+		list_destroy(pci_list);
+
+		lancium_init_done = true;
 	}
-	list_iterator_destroy(dev_itr);
-
-	//this should destroy the allocated string inside pci_list
-	list_destroy(pci_list);
+	else
+	{
+		debug("lancium: skipping building gpu bus mapping as we've already done this");
+	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -342,7 +352,8 @@ extern int task_cgroup_devices_fini(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 	/////////////////// LANCIUM CLEANUP ///////////////////////////////////////////////////////////////////
 
-	free(mapping);
+	debug("lancium: RUNNING FINI");
+	//free(lancium_mapping);
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -512,13 +523,13 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 			debug("lancium: about to use device mapping for cgroup for fake device=%s", gres_device->path);
 
 			//confirm index/device match
-			if(strcmp(mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
+			if(strcmp(lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
 			{
 				error("lancium: something is wrong with the device mapping initilization!");
 			}
 
 			//find the real device we want (bus_id)
-			char* desired_bus = mapping[cur_fake_dev_num].bus_id;
+			char* desired_bus = lancium_mapping[cur_fake_dev_num].bus_id;
 
 			debug("lancium: this device has mapped to bus_id=%s", desired_bus);
 
@@ -606,13 +617,13 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 			debug("lancium: about to use device mapping for cgroup for fake device=%s", gres_device->path);
 
 			//confirm index/device match
-			if(strcmp(mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
+			if(strcmp(lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
 			{
 				error("lancium: something is wrong with the device mapping initilization!");
 			}
 
 			//find the real device we want (bus_id)
-			char* desired_bus = mapping[cur_fake_dev_num].bus_id;
+			char* desired_bus = lancium_mapping[cur_fake_dev_num].bus_id;
 
 			debug("lancium: this device has mapped to bus_id=%s", desired_bus);
 
