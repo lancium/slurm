@@ -174,6 +174,11 @@ void __lancium_del_node(void* str)
 	free(str);
 }
 
+//this is never deleted but we would only want to delete this at the end of the program
+//we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
+lancium_device_mapping_t *lancium_mapping;
+
+
 extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 {
 	uint16_t cpunum;
@@ -219,14 +224,9 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	/////////////////// LANCIUM INIT ///////////////////////////////////////////////////////////////////
 
 	int lancium_mapping_cnt;
-	//this is never deleted but we would only want to delete this at the end of the program
-	//we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
-	lancium_device_mapping_t *lancium_mapping;
-
+	
 	//replace this "false" with checking if the file already exists
 	//bool lancium_init_done = false;
-
-	debug("mapping file exists=%d", lancium_init_done);
 
 	List gres_list = list_create(NULL);
 	lancium_gres_plugin_get_all_gres(gres_list);
@@ -291,7 +291,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 			//JASON:write a line to the mapping file
 			// gonna try some fprintf magic
 			///////////////////////////////////////////////////
-			fprintf(lancium_mapping_file, "%s,%s\n", pci_list, gres_device->path);
+			fprintf(lancium_mapping_file, "%s,%s\n", bus, gres_device->path);
 
 			//assign a consistant mapping
 			strncpy(lancium_mapping[index].fake_device_path, gres_device->path, 128);
@@ -314,8 +314,14 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 		//maximum length of line is 257
 		char mapping_line[257];
+
+		gres_device_t *gres_device;
+		ListIterator dev_itr = list_iterator_create(gres_list);
+
 		
 		while(fgets(mapping_line, 257, lancium_mapping_file)){
+			gres_device = list_next(dev_itr);
+			int index = gres_device->dev_num;
 			debug("lancium: read in line %s", mapping_line);
 			char* bus_id = strtok(mapping_line, ",");
 			char* dev_path = strtok(NULL, ",");
