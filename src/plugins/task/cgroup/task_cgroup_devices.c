@@ -105,20 +105,19 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 
 	debug("lancium: attempting to get the nvidia pci buses-----------");
 	// Read the output a line at a time
-	while (fgets(res, 128 * sizeof(char), fp) != NULL)
+	while (fgets(res, sizeof(res), fp) != NULL)
 	{
-		if(res == NULL)
-			error("lancium: failed to get ls output for finding nvidia pci buses");
-			continue;
-
+		debug("lancium: res=%s", res);
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
 		{
+			char* clean = strtok(res, "\n");
+
 			//we need to make a copy
-			char* scpy = malloc(128 * sizeof(char)); //this is freed when removed from the list
-			strncpy(scpy, strtok(res, "\n"), 128); //copy and remove newline
+			char* scpy = malloc(sizeof(res)); //this is freed when removed from the list
+			strncpy(scpy, clean, sizeof(res)); //copy and remove newline
 
 			list_append(pci_list, scpy);
-			debug("lancium: found bus id %s", res);
+			debug("lancium: found bus id %s", clean);
 		}
 		else
 		{
