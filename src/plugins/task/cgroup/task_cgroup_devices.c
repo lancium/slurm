@@ -222,6 +222,9 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	/////////////////// LANCIUM INIT ///////////////////////////////////////////////////////////////////
 
 	static bool lancium_init_done = false;
+
+	debug("before changing, lancium_init_done is %d", lancium_init_done);
+
 	//this is never deleted but we would only want to delete this at the end of the program
 	//we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
 	static lancium_device_mapping_t *lancium_mapping;
