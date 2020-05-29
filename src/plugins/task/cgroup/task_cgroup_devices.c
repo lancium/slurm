@@ -237,7 +237,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 	if(gres_cnt > list_count(pci_list))
 	{
-		error("lancium: gres list size is larger than the number of gpus on the system! This is unexpected and not currently handled. Have you added gres resources besides GPUs? \
+		fatal_abort("lancium: gres list size is larger than the number of gpus on the system! This is unexpected and not currently handled. Have you added gres resources besides GPUs? \
 			If so, you need to revist the slurm plugin changes.");
 	}
 
