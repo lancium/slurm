@@ -87,7 +87,9 @@ typedef struct
 } lancium_device_mapping_t;
 
 static bool lancium_init_done = false;
-static lancium_device_mapping_t *lancium_mapping;
+//this is never deleted but we would only want to delete this at the end of the program
+//we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
+static lancium_device_mapping_t *lancium_mapping; 
 static int lancium_mapping_cnt = 0;
 
 extern void lancium_get_all_nvidia_bus_ids(List pci_list)
@@ -284,6 +286,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		list_destroy(pci_list);
 
 		lancium_init_done = true;
+		debug("lancium: GPU mapping init done");
 	}
 	else
 	{
@@ -349,13 +352,6 @@ extern int task_cgroup_devices_fini(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	cgroup_allowed_devices_file[0] = '\0';
 
 	xcgroup_ns_destroy(&devices_ns);
-
-	/////////////////// LANCIUM CLEANUP ///////////////////////////////////////////////////////////////////
-
-	debug("lancium: RUNNING FINI");
-	//free(lancium_mapping);
-
-	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 	xcpuinfo_fini();
 	return SLURM_SUCCESS;
