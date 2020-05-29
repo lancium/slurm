@@ -109,6 +109,7 @@ extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 	{
 		if(res == NULL)
 			error("lancium: failed to get ls output for finding nvidia pci buses");
+			continue;
 
 		if(res[4] == ':' && res[7] == ':' && res[10] == '.')
 		{
