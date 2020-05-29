@@ -223,8 +223,8 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	//we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
 	lancium_device_mapping_t *lancium_mapping;
 
-	//JASON: replace this "false" with checking if the file already exists
-	bool lancium_init_done = false;
+	//replace this "false" with checking if the file already exists
+	//bool lancium_init_done = false;
 
 	debug("mapping file exists=%d", lancium_init_done);
 
@@ -249,11 +249,15 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	lancium_mapping = malloc(lancium_mapping_cnt * sizeof(lancium_device_mapping_t)); //malloc but this cannot be easily freed, see comment on declaration
 
 	//this init is ran for every job, WE ONLY WANT TO DO THIS IF THE FILE DOESN'T EXIST ALREADY
-	if (lancium_init_done == false)
+	FILE * lancium_mapping_file = fopen("/tmp/slurm-gpu", "rb");
+	// lancium_mapping_file will be null if not available
+	if (lancium_mapping_file == NULL)
 	{
 		///////////////////////////////////////////////////
-		//JASON:create mapping file HERE
+		// mapping file created here in /tmp/slurm-gpu
 		///////////////////////////////////////////////////
+		lancium_mapping_file = fopen("/tmp/slurm-gpu", "wb");
+
 
 		//iterate list and search for our fake_device to create maps to real device bus ids
 		gres_device_t *gres_device;
@@ -285,26 +289,41 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 			
 			///////////////////////////////////////////////////
 			//JASON:write a line to the mapping file
+			// gonna try some fprintf magic
 			///////////////////////////////////////////////////
+			fprintf(lancium_mapping_file, "%s,%s\n", pci_list, gres_device->path);
 
 			//assign a consistant mapping
 			strncpy(lancium_mapping[index].fake_device_path, gres_device->path, 128);
 			strncpy(lancium_mapping[index].bus_id, bus, 128);
+
 		}
+
 		list_iterator_destroy(dev_itr);
 
 		//this should destroy the allocated string inside pci_list
 		list_destroy(pci_list);
 
 		debug("lancium: GPU mapping file created");
+		fclose(lancium_mapping_file);
 	}
 	else
 	{
 		//the file exists, we need to parse it and write the information into lancium_mapping
-
-		//JASON: do above
-
 		debug("lancium: skipping building gpu bus mapping as we've already done this");
+
+		//maximum length of line is 257
+		char mapping_line[257];
+		
+		while(fgets(mapping_line, 257, lancium_mapping_file)){
+			debug("lancium: read in line %s", mapping_line);
+			char* bus_id = strtok(mapping_line, ",");
+			char* dev_path = strtok(NULL, ",");
+			strncpy(lancium_mapping[index].fake_device_path, dev_path, 128);
+			strncpy(lancium_mapping[index].bus_id, bus_id, 128);
+		}
+
+		fclose(lancium_mapping_file);
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
