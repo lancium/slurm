@@ -212,6 +212,8 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 	/////////////////// LANCIUM INIT ///////////////////////////////////////////////////////////////////
 
+	debug("lancium_init_done is=%d", lancium_init_done);
+
 	//this init is ran for every job, WE ONLY WANT TO DO THIS ONE TIME
 	if (lancium_init_done == false)
 	{
