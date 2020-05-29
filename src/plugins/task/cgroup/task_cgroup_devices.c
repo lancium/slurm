@@ -224,25 +224,11 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	/////////////////// LANCIUM INIT ///////////////////////////////////////////////////////////////////
 
 	int lancium_mapping_cnt;
-	
-	//replace this "false" with checking if the file already exists
-	//bool lancium_init_done = false;
 
 	List gres_list = list_create(NULL);
 	lancium_gres_plugin_get_all_gres(gres_list);
 
-	List pci_list = list_create(__lancium_del_node);
-	lancium_get_all_nvidia_bus_ids(pci_list);
-
-	debug("lancium: about to map the fake devices to bus ids");
-
 	int gres_cnt = list_count(gres_list);
-
-	if (gres_cnt > list_count(pci_list))
-	{
-		fatal_abort("lancium: gres list size is larger than the number of gpus on the system! This is unexpected and not currently handled. Have you added gres resources besides GPUs? \
-			If so, you need to revist the slurm plugin changes.");
-	}
 
 	lancium_mapping_cnt = gres_cnt;
 
@@ -253,6 +239,17 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	// lancium_mapping_file will be null if not available
 	if (lancium_mapping_file == NULL)
 	{
+		debug("lancium: about to map the fake devices to bus ids");
+		
+		List pci_list = list_create(__lancium_del_node);
+		lancium_get_all_nvidia_bus_ids(pci_list);
+
+		if (gres_cnt > list_count(pci_list))
+		{
+			fatal_abort("lancium: gres list size is larger than the number of gpus on the system! This is unexpected and not currently handled. Have you added gres resources besides GPUs? \
+			If so, you need to revist the slurm plugin changes.");
+		}
+
 		///////////////////////////////////////////////////
 		// mapping file created here in /tmp/slurm-gpu
 		///////////////////////////////////////////////////
