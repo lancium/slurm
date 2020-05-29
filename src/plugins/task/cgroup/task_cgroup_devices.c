@@ -323,8 +323,8 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 			gres_device = list_next(dev_itr);
 			int index = gres_device->dev_num;
 			debug("lancium: read in line %s", mapping_line);
-			char* bus_id = strtok(mapping_line, ",");
-			char* dev_path = strtok(NULL, ",");
+			char* bus_id = strtok(mapping_line, ",\n");
+			char* dev_path = strtok(NULL, ",\n");
 			strncpy(lancium_mapping[index].fake_device_path, dev_path, 128);
 			strncpy(lancium_mapping[index].bus_id, bus_id, 128);
 		}
