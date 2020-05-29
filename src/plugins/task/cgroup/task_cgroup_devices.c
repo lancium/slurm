@@ -282,11 +282,12 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 			debug("lancium: index is=%d", index);
 
-			//assign a consistant mapping
+			
 			///////////////////////////////////////////////////
 			//JASON:write a line to the mapping file
 			///////////////////////////////////////////////////
 
+			//assign a consistant mapping
 			strncpy(lancium_mapping[index].fake_device_path, gres_device->path, 128);
 			strncpy(lancium_mapping[index].bus_id, bus, 128);
 		}
@@ -300,6 +301,8 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	else
 	{
 		//the file exists, we need to parse it and write the information into lancium_mapping
+
+		//JASON: do above
 
 		debug("lancium: skipping building gpu bus mapping as we've already done this");
 	}
