@@ -79,6 +79,18 @@ static void _calc_device_major(char *dev_path[PATH_MAX],
 
 static int _read_allowed_devices_file(char *allowed_devices[PATH_MAX]);
 
+typedef struct
+{
+    char fake_device_path[128];
+    char bus_id[128];
+} lancium_device_mapping_t;
+
+extern bool lancium_init_done;
+//this is never deleted but we would only want to delete this at the end of the program
+//we cannot delete this in fini as init/fini run for each job and we need this var to persist throughout the lifespan of the program
+extern lancium_device_mapping_t *lancium_mapping;
+extern int lancium_mapping_cnt;
+
 extern void lancium_get_all_nvidia_bus_ids(List pci_list)
 {
 	//now we need to find the pci bus

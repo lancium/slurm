@@ -158,10 +158,6 @@ static char	*res_mac_cpus = NULL;	/* reserved machine CPUs list */
 static int	ncores;			/* number of cores on this node */
 static int	ncpus;			/* number of CPUs on this node */
 
-bool lancium_init_done = false;
-int lancium_mapping_cnt = 0;
-lancium_device_mapping_t *lancium_mapping = NULL;
-
 /*
  * static shutdown and reconfigure flags:
  */
