@@ -561,68 +561,75 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 
 	if (device_list) {
 		itr = list_iterator_create(device_list);
-		while ((gres_device = list_next(itr))) {
+		//////////////////////////// LANCIUM MODIFICATION //////////////////////////////////////////
 
-			//////////////////////////// LANCIUM MODIFICATION //////////////////////////////////////////
-
-			int cur_fake_dev_num = gres_device->dev_num;
-
-			debug("lancium: about to use device mapping for cgroup for fake device=%s", gres_device->path);
-
-			//confirm index/device match
-			if(strcmp(lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
-			{
-				error("lancium: something is wrong with the device mapping initilization! %s != %s", lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path);
-			}
-
-			//find the real device we want (bus_id)
-			char* desired_bus = lancium_mapping[cur_fake_dev_num].bus_id;
-
-			debug("lancium: this device has mapped to bus_id=%s", desired_bus);
-
-			//now we need to find what device minor number this cards is actually at now
-			char cur_real_dev_path[64];
-			lancium_find_dev_path_from_bus(cur_real_dev_path, 64, desired_bus);
-
-			if(strcmp(cur_real_dev_path, "/dev/NO_DEVICE") == 0)
-			{
-				//this device isn't present, it should not be what we are looking for; we should look into if we still need to block these devices
-				//in case they return to the host while the job is running. However, it is not as simple as just blocking gres_device->major as this is
-				//not the real device. in fact, until it returns we have no idea what device this bus will become
-
-				//therefore, instead of loops through and checking if they are our devices or not. we need to start with all the devices in deny and then
-				//add our devices to allow as we find them. This is because we cannot check the device numbers of GPUs that are attached obviously. therefore,
-				//we cant actually figure out which device to block through this method.
-
-				//remember to change in BOTH locations
-
-				debug("lancium: this is currently broken behavior. see comment in source code for plans to fix this");
-			}
-
-			debug("lancium: this device has mapped to dev_path=%s", cur_real_dev_path);
-
-			//get major from path
-			char* cur_real_major = gres_device_major(cur_real_dev_path);
-
-			debug("lancium: this device has mapped to dev_major=%s", cur_real_major);
-
-			if (gres_device->alloc) {
-				debug("lancium: Allowing access to device %s(%s) for job",
-				      cur_real_major, cur_real_dev_path);
-				xcgroup_set_param(&job_devices_cg,
-						  "devices.allow",
-						  cur_real_major);
-			} else {
-				debug("lancium: Not allowing access to device %s(%s) for job",
-				       cur_real_major, cur_real_dev_path);
-				xcgroup_set_param(&job_devices_cg,
-						  "devices.deny",
-						  cur_real_major);
-			}
-
-			////////////////////////////////////////////////////////////////////////////////////////////
+		//set all gres devices to deny
+		while ((gres_device = list_next(itr)))
+		{
+			//set all gress devices to default to not allowed
+			debug("lancium: BY DEFAULT: not allowing access to device %s(%s) for job", gres_device->major, gres_device->path);
+			xcgroup_set_param(&job_devices_cg, "devices.deny", gres_device->major);
 		}
 		list_iterator_destroy(itr);
+
+		itr = list_iterator_create(device_list);
+		while ((gres_device = list_next(itr)))
+		{
+			if (gres_device->alloc)
+			{
+				debug("lancium: \"fake\" device (%s) is allocated to us", gres_device->path);
+
+				int cur_fake_dev_num = gres_device->dev_num;
+
+				debug("lancium: about to use device mapping for cgroup for \"fake\" device=%s", gres_device->path);
+
+				//confirm index/device match
+				if (strcmp(lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
+				{
+					error("lancium: something is wrong with the device mapping initilization! %s != %s", lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path);
+				}
+
+				//find the real device we want (bus_id)
+				char *desired_bus = lancium_mapping[cur_fake_dev_num].bus_id;
+
+				debug("lancium: this device has mapped to bus_id=%s", desired_bus);
+
+				//now we need to find what device minor number this cards is actually at now
+				char cur_real_dev_path[64];
+				lancium_find_dev_path_from_bus(cur_real_dev_path, 64, desired_bus);
+
+				if (strcmp(cur_real_dev_path, "/dev/NO_DEVICE") == 0)
+				{
+					error("lancium: could not find requested bus in the nvidia driver information. Something is very wrong.\
+						The job will be denied this device as we cannot resolve what the physical hardware should be.");
+					//this device isn't present, it should not be what we are looking for; we should look into if we still need to block these devices
+					//in case they return to the host while the job is running. However, it is not as simple as just blocking gres_device->major as this is
+					//not the real device. in fact, until it returns we have no idea what device this bus will become
+
+					//therefore, instead of loops through and checking if they are our devices or not. we need to start with all the devices in deny and then
+					//add our devices to allow as we find them. This is because we cannot check the device numbers of GPUs that are attached obviously. therefore,
+					//we cant actually figure out which device to block through this method.
+
+					//remember to change in BOTH locations
+				}
+
+				debug("lancium: this device has mapped to dev_path=%s", cur_real_dev_path);
+
+				//get major from path
+				char *cur_real_major = gres_device_major(cur_real_dev_path);
+
+				debug("lancium: this device has mapped to dev_major=%s", cur_real_major);
+
+				debug("lancium: Allowing access to device %s(%s) for job in the job_devices_cg",
+					  cur_real_major, cur_real_dev_path);
+				xcgroup_set_param(&job_devices_cg,
+								  "devices.allow",
+								  cur_real_major);
+			}
+		}
+		list_iterator_destroy(itr);
+		////////////////////////////////////////////////////////////////////////////////////////////
+
 		list_destroy(device_list);
 	}
 
@@ -668,59 +675,82 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 		device_list = gres_plugin_get_allocated_devices(
 			step_gres_list, false);
 
-		if (device_list) {
+		if (device_list)
+		{
 			itr = list_iterator_create(device_list);
-			while ((gres_device = list_next(itr))) {
-
 			//////////////////////////// LANCIUM MODIFICATION //////////////////////////////////////////
 
-			int cur_fake_dev_num = gres_device->dev_num;
-
-			debug("lancium: about to use device mapping for cgroup for fake device=%s", gres_device->path);
-
-			//confirm index/device match
-			if(strcmp(lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
+			//set all gres devices to deny
+			while ((gres_device = list_next(itr)))
 			{
-				error("lancium: something is wrong with the device mapping initilization! %s != %s", lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path);
-			}
-
-			//find the real device we want (bus_id)
-			char* desired_bus = lancium_mapping[cur_fake_dev_num].bus_id;
-
-			debug("lancium: this device has mapped to bus_id=%s", desired_bus);
-
-			//now we need to find what device minor number this cards is actually at now
-			char cur_real_dev_path[64];
-			lancium_find_dev_path_from_bus(cur_real_dev_path, 64, desired_bus);
-
-			debug("lancium: this device has mapped to dev_path=%s", cur_real_dev_path);
-
-			//get major from path
-			char* cur_real_major = gres_device_major(cur_real_dev_path);
-
-			debug("lancium: this device has mapped to dev_major=%s", cur_real_major);
-
-			if (gres_device->alloc) {
-				debug("lancium: Allowing access to device %s(%s) for job",
-				      cur_real_major, cur_real_dev_path);
-				xcgroup_set_param(&step_devices_cg,
-						  "devices.allow",
-						  cur_real_major);
-			} else {
-				debug("lancium: Not allowing access to device %s(%s) for job",
-				       cur_real_major, cur_real_dev_path);
-				xcgroup_set_param(&step_devices_cg,
-						  "devices.deny",
-						  cur_real_major);
-			}
-
-			////////////////////////////////////////////////////////////////////////////////////////////
-
+				//set all gress devices to default to not allowed
+				debug("lancium: BY DEFAULT: not allowing access to device %s(%s) for job", gres_device->major, gres_device->path);
+				xcgroup_set_param(&step_devices_cg, "devices.deny", gres_device->major);
 			}
 			list_iterator_destroy(itr);
+
+			itr = list_iterator_create(device_list);
+			while ((gres_device = list_next(itr)))
+			{
+				if (gres_device->alloc)
+				{
+					debug("lancium: \"fake\" device (%s) is allocated to us", gres_device->path);
+
+					int cur_fake_dev_num = gres_device->dev_num;
+
+					debug("lancium: about to use device mapping for cgroup for \"fake\" device=%s", gres_device->path);
+
+					//confirm index/device match
+					if (strcmp(lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path) != 0)
+					{
+						error("lancium: something is wrong with the device mapping initilization! %s != %s", lancium_mapping[cur_fake_dev_num].fake_device_path, gres_device->path);
+					}
+
+					//find the real device we want (bus_id)
+					char *desired_bus = lancium_mapping[cur_fake_dev_num].bus_id;
+
+					debug("lancium: this device has mapped to bus_id=%s", desired_bus);
+
+					//now we need to find what device minor number this cards is actually at now
+					char cur_real_dev_path[64];
+					lancium_find_dev_path_from_bus(cur_real_dev_path, 64, desired_bus);
+
+					if (strcmp(cur_real_dev_path, "/dev/NO_DEVICE") == 0)
+					{
+						error("lancium: could not find requested bus in the nvidia driver information. Something is very wrong.\
+						The job will be denied this device as we cannot resolve what the physical hardware should be.");
+						//this device isn't present, it should not be what we are looking for; we should look into if we still need to block these devices
+						//in case they return to the host while the job is running. However, it is not as simple as just blocking gres_device->major as this is
+						//not the real device. in fact, until it returns we have no idea what device this bus will become
+
+						//therefore, instead of loops through and checking if they are our devices or not. we need to start with all the devices in deny and then
+						//add our devices to allow as we find them. This is because we cannot check the device numbers of GPUs that are attached obviously. therefore,
+						//we cant actually figure out which device to block through this method.
+
+						//remember to change in BOTH locations
+					}
+
+					debug("lancium: this device has mapped to dev_path=%s", cur_real_dev_path);
+
+					//get major from path
+					char *cur_real_major = gres_device_major(cur_real_dev_path);
+
+					debug("lancium: this device has mapped to dev_major=%s", cur_real_major);
+
+					debug("lancium: Allowing access to device %s(%s) for job in the step_devices_cg",
+						  cur_real_major, cur_real_dev_path);
+					xcgroup_set_param(&step_devices_cg,
+									  "devices.allow",
+									  cur_real_major);
+				}
+			}
+			list_iterator_destroy(itr);
+			////////////////////////////////////////////////////////////////////////////////////////////
+
 			list_destroy(device_list);
 		}
 	}
+
 	/* attach the slurmstepd to the step devices cgroup */
 	pid_t pid = getpid();
 	rc = xcgroup_add_pids(&step_devices_cg, &pid, 1);
