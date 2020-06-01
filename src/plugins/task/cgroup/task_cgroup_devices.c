@@ -132,8 +132,11 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 	char cmd[128];
 
 	strcpy(cmd, "cat /proc/driver/nvidia/gpus/");
-	strncat(cmd, bus, 93); //should never get close, but protect the buffer
-	strcat(cmd, "/information");
+	strncat(cmd, bus, 72); //should never get close, but protect the buffer
+	strcat(cmd, "/information 2> /dev/null");
+
+	//default failure output
+	strcpy(dev_path_out, "/dev/NO_DEVICE");
 
 	/* Open the command for reading. */
 	fp = popen(cmd, "r");
@@ -150,7 +153,7 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 	{
 		//stdout is empty
 		debug("lancium: could not find the dev path for this bus %s. This probably means that it is detached", bus);
-		strcpy(dev_path_out, "/dev/NO_DEVICE");
+		// strcpy(dev_path_out, "/dev/NO_DEVICE");
 		pclose(fp);
 		return;
 	}
