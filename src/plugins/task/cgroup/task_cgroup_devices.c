@@ -605,15 +605,8 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 				{
 					error("lancium: could not find requested bus in the nvidia driver information. Something is very wrong.\
 						The job will be denied this device as we cannot resolve what the physical hardware should be.");
-					//this device isn't present, it should not be what we are looking for; we should look into if we still need to block these devices
-					//in case they return to the host while the job is running. However, it is not as simple as just blocking gres_device->major as this is
-					//not the real device. in fact, until it returns we have no idea what device this bus will become
 
-					//therefore, instead of loops through and checking if they are our devices or not. we need to start with all the devices in deny and then
-					//add our devices to allow as we find them. This is because we cannot check the device numbers of GPUs that are attached obviously. therefore,
-					//we cant actually figure out which device to block through this method.
-
-					//remember to change in BOTH locations
+					continue;
 				}
 
 				debug("lancium: this device has mapped to dev_path=%s", cur_real_dev_path);
@@ -722,15 +715,8 @@ extern int task_cgroup_devices_create(stepd_step_rec_t *job)
 					{
 						error("lancium: could not find requested bus in the nvidia driver information. Something is very wrong.\
 						The job will be denied this device as we cannot resolve what the physical hardware should be.");
-						//this device isn't present, it should not be what we are looking for; we should look into if we still need to block these devices
-						//in case they return to the host while the job is running. However, it is not as simple as just blocking gres_device->major as this is
-						//not the real device. in fact, until it returns we have no idea what device this bus will become
 
-						//therefore, instead of loops through and checking if they are our devices or not. we need to start with all the devices in deny and then
-						//add our devices to allow as we find them. This is because we cannot check the device numbers of GPUs that are attached obviously. therefore,
-						//we cant actually figure out which device to block through this method.
-
-						//remember to change in BOTH locations
+						continue;
 					}
 
 					debug("lancium: this device has mapped to dev_path=%s", cur_real_dev_path);
