@@ -249,7 +249,7 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 	lancium_mapping_cnt = gres_cnt;
 
-	lancium_mapping = malloc(lancium_mapping_cnt * sizeof(lancium_device_mapping_t)); //malloc but this cannot be easily freed, see comment on declaration
+	lancium_mapping = malloc(lancium_mapping_cnt * sizeof(lancium_device_mapping_t)); //malloc, deleted in fini
 
 	//this init is ran for every job, WE ONLY WANT TO DO THIS IF THE FILE DOESN'T EXIST ALREADY
 	FILE * lancium_mapping_file = fopen("/tmp/slurm-gpu", "rb");
@@ -399,6 +399,12 @@ extern int task_cgroup_devices_fini(slurm_cgroup_conf_t *slurm_cgroup_conf)
 	cgroup_allowed_devices_file[0] = '\0';
 
 	xcgroup_ns_destroy(&devices_ns);
+
+	/////////////////// LANCIUM FINI ///////////////////////////////////////////////////////////////////
+
+	free(lancium_mapping);
+
+	/////////////////// LANCIUM FINI ///////////////////////////////////////////////////////////////////
 
 	xcpuinfo_fini();
 	return SLURM_SUCCESS;
