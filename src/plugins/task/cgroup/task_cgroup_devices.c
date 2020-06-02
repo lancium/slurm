@@ -153,7 +153,6 @@ extern void lancium_find_dev_path_from_bus(char* dev_path_out, int max_out_lengt
 	{
 		//stdout is empty
 		debug("lancium: could not find the dev path for this bus %s. This probably means that it is detached", bus);
-		// strcpy(dev_path_out, "/dev/NO_DEVICE");
 		pclose(fp);
 		return;
 	}
@@ -273,7 +272,6 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 		///////////////////////////////////////////////////
 		lancium_mapping_file = fopen("/tmp/slurm-gpu", "wb");
 
-
 		//iterate list and search for our fake_device to create maps to real device bus ids
 		gres_device_t *gres_device;
 		ListIterator dev_itr = list_iterator_create(gres_list);
@@ -301,17 +299,12 @@ extern int task_cgroup_devices_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 
 			debug("lancium: index is=%d", index);
 
-			
-			///////////////////////////////////////////////////
-			//JASON:write a line to the mapping file
-			// gonna try some fprintf magic
-			///////////////////////////////////////////////////
+			//write mapping information to file
 			fprintf(lancium_mapping_file, "%s,%s\n", bus, gres_device->path);
 
 			//assign a consistant mapping
 			strncpy(lancium_mapping[index].fake_device_path, gres_device->path, 128);
 			strncpy(lancium_mapping[index].bus_id, bus, 128);
-
 		}
 
 		list_iterator_destroy(dev_itr);
