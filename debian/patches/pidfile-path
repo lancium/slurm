@@ -1,0 +1,32 @@
+Description: Fix default pidfile paths
+ This patch points default pidfild paths under /var/run/slurm-llnl
+Author: Mehdi Dogguy <mehdi@debian.org>
+Bug-Debian: http://bugs.debian.org/885759
+Forwarded: no
+Last-Update: 2018-01-11
+
+--- a/src/common/read_config.h
++++ b/src/common/read_config.h
+@@ -166,9 +166,9 @@
+ #else
+ #  define DEFAULT_SELECT_TYPE       "select/linear"
+ #endif
+-#define DEFAULT_SLURMCTLD_PIDFILE   "/var/run/slurmctld.pid"
++#define DEFAULT_SLURMCTLD_PIDFILE   "/var/run/slurm-llnl/slurmctld.pid"
+ #define DEFAULT_SLURMCTLD_TIMEOUT   120
+-#define DEFAULT_SLURMD_PIDFILE      "/var/run/slurmd.pid"
++#define DEFAULT_SLURMD_PIDFILE      "/var/run/slurm-llnl/slurmd.pid"
+ #define DEFAULT_SLURMD_TIMEOUT      300
+ #define DEFAULT_SPOOLDIR            "/var/spool/slurmd"
+ #define DEFAULT_STORAGE_HOST        "localhost"
+--- a/src/slurmdbd/read_config.h
++++ b/src/slurmdbd/read_config.h
+@@ -48,7 +48,7 @@
+ 
+ #define DEFAULT_SLURMDBD_AUTHTYPE	"auth/none"
+ //#define DEFAULT_SLURMDBD_JOB_PURGE	12
+-#define DEFAULT_SLURMDBD_PIDFILE	"/var/run/slurmdbd.pid"
++#define DEFAULT_SLURMDBD_PIDFILE	"/var/run/slurm-llnl/slurmdbd.pid"
+ #define DEFAULT_SLURMDBD_ARCHIVE_DIR	"/tmp"
+ //#define DEFAULT_SLURMDBD_STEP_PURGE	1
+ 
